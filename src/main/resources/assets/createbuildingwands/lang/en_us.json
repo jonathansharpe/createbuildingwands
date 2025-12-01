@@ -1,13 +1,10 @@
 {
-  "itemGroup.createbuildingwands": "Example Mod Tab",
-  "block.createbuildingwands.example_block": "Example Block",
-  "item.createbuildingwands.example_item": "Example Item",
+  "itemGroup.createbuildingwands": "Create: Building Wands",
+  "creativetab.createbuildingwands.wands": "Create: Building Wands",
+  "item.createbuildingwands.basic_wand": "Basic Wand",
 
   "createbuildingwands.configuration.title": "Create Building Wands Configs",
   "createbuildingwands.configuration.section.createbuildingwands.common.toml": "Create Building Wands Configs",
   "createbuildingwands.configuration.section.createbuildingwands.common.toml.title": "Create Building Wands Configs",
-  "createbuildingwands.configuration.items": "Item List",
-  "createbuildingwands.configuration.logDirtBlock": "Log Dirt Block",
-  "createbuildingwands.configuration.magicNumberIntroduction": "Magic Number Text",
-  "createbuildingwands.configuration.magicNumber": "Magic Number"
+  "createbuildingwands.configuration.items": "Item List"
 }
