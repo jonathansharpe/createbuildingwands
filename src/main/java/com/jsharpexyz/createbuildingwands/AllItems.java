@@ -1,6 +1,7 @@
 package com.jsharpexyz.createbuildingwands;
 
 import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
+import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -21,8 +22,8 @@ public class AllItems {
     public static final DeferredRegister.Items ITEMS = 
         DeferredRegister.createItems(CreateBuildingWands.MODID);
 
-    public static final DeferredItem<Item> BASIC_WAND = ITEMS.register("basic_wand", 
-        () -> new Item(new Item.Properties())
+    public static final DeferredItem<Item> ANDESITE_WAND = ITEMS.register("andesite_wand", 
+        () -> new AndesiteWandItem(new Item.Properties().stacksTo(1))
     );
 
     public static void register(IEventBus eventBus) {

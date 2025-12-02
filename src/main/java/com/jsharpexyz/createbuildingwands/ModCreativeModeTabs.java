@@ -15,10 +15,10 @@ public class ModCreativeModeTabs {
     
     public static final Supplier<CreativeModeTab> WANDS_TAB = CREATIVE_MODE_TAB.register("wands_tab", 
             () -> CreativeModeTab.builder()
-                .icon(() -> new ItemStack(AllItems.BASIC_WAND.get()))
+                .icon(() -> new ItemStack(AllItems.ANDESITE_WAND.get()))
                 .title(Component.translatable("creativetab.createbuildingwands.wands"))
                 .displayItems((itemDisplayParameters, output) -> {
-                    output.accept(AllItems.BASIC_WAND);
+                    output.accept(AllItems.ANDESITE_WAND);
                 })
                 .build()
     );

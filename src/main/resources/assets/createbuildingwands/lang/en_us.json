@@ -1,7 +1,7 @@
 {
   "itemGroup.createbuildingwands": "Create: Building Wands",
   "creativetab.createbuildingwands.wands": "Create: Building Wands",
-  "item.createbuildingwands.basic_wand": "Basic Wand",
+  "item.createbuildingwands.andesite_wand": "Andesite Wand",
 
   "createbuildingwands.configuration.title": "Create Building Wands Configs",
   "createbuildingwands.configuration.section.createbuildingwands.common.toml": "Create Building Wands Configs",
