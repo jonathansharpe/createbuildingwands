@@ -1,7 +1,6 @@
-package com.jsharpexyz.createbuildingwands.screen;
+package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen;
 
 import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
-import com.jsharpexyz.createbuildingwands.screen.custom.WandConfigMenu;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.AbstractContainerMenu;

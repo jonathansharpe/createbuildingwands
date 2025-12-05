@@ -2,6 +2,10 @@
   "itemGroup.createbuildingwands": "Create: Building Wands",
   "creativetab.createbuildingwands.wands": "Create: Building Wands",
   "item.createbuildingwands.andesite_wand": "Andesite Wand",
+  "mode.createbuildingwands.single": "Single",
+  "mode.createbuildingwands.line": "Line",
+  "mode.createbuildingwands.rectangle": "Rectangle",
+  "mode.createbuildingwands.sphere": "Sphere",
 
   "createbuildingwands.configuration.title": "Create Building Wands Configs",
   "createbuildingwands.configuration.section.createbuildingwands.common.toml": "Create Building Wands Configs",
