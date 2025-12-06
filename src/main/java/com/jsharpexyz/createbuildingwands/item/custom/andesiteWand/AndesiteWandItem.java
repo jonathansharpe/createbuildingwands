@@ -1,6 +1,7 @@
 package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand;
 
 import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
+import com.jsharpexyz.createbuildingwands.component.BlockReferenceComponent;
 import com.jsharpexyz.createbuildingwands.component.ModDataComponents;
 import com.jsharpexyz.createbuildingwands.item.custom.WandMode;
 import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
@@ -10,24 +11,34 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.Blocks;
 import javax.annotation.Nullable;
 
 public class AndesiteWandItem extends Item {
+
+    public static final String SELECTED_BLOCK_TAG_KEY = "WandSelectedBlock";
+
     public AndesiteWandItem(Properties properties) {
         super(properties);
     }
@@ -53,6 +64,7 @@ public class AndesiteWandItem extends Item {
                 }
 
                 @Override
+                @Nullable
                 public AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
                     return new WandConfigMenu(id, inv, hand);
                 }
@@ -70,11 +82,23 @@ public class AndesiteWandItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level pLevel, Player pPlayer, InteractionHand pHand) {
         ItemStack itemStack = pPlayer.getItemInHand(pHand);
         if (pPlayer.isShiftKeyDown()) {
-            openConfig(pLevel, pPlayer, pHand);
+            if (pLevel.isClientSide()) {
+                pPlayer.swing(pHand);
+            }
+            else {
+                if (pPlayer instanceof ServerPlayer serverPlayer) {
+                    MenuProvider provider = this.getMenuProvider(pHand);
+
+                    serverPlayer.openMenu(
+                        provider,
+                        buf -> buf.writeEnum(pHand)
+                    );
+                }
+            }
+            // openConfig(pLevel, pPlayer, pHand);
             return InteractionResultHolder.consume(itemStack);
         }
         else {
-            //TODO: add logic to place blocks here
             return InteractionResultHolder.pass(itemStack);
         }
     }
@@ -82,44 +106,97 @@ public class AndesiteWandItem extends Item {
     @Override
     public InteractionResult useOn(UseOnContext pContext) {
         Level level = pContext.getLevel();
-        Player player = pContext.getPlayer();
-        ItemStack wand = pContext.getItemInHand();
+        BlockPos clickedPos = pContext.getClickedPos();
+        ItemStack heldWand = pContext.getItemInHand();
 
-        if (level.isClientSide()) {
-            if (player == null) {
-                return InteractionResult.PASS;
+        Player player = pContext.getPlayer();
+        if (player == null) {
+            return InteractionResult.FAIL;
+        }
+
+        if (player.isCrouching()) {
+            if (!level.isClientSide()) {
+                openConfig(level, player, pContext.getHand());
             }
-            else {
-                player.swing(pContext.getHand());
+            return InteractionResult.CONSUME;
+        }
+
+        BlockState targetState = Blocks.STONE.defaultBlockState();
+        BlockReferenceComponent blockComponent = heldWand.get(ModDataComponents.WAND_BLOCK.get());
+
+        if (blockComponent != null) {
+            ItemStack storedStack = blockComponent.blockStack();
+            if (!storedStack.isEmpty()) {
+                Block blockToPlace = Block.byItem(storedStack.getItem());
+                if (blockToPlace != Blocks.AIR) {
+                    targetState = blockToPlace.defaultBlockState();
+                }
             }
         }
-        if (player == null || level.isClientSide()) {
+
+        if (targetState.is(Blocks.STONE) && (blockComponent == null || blockComponent.blockStack().isEmpty())) {
             return InteractionResult.PASS;
         }
 
-        if (player.isShiftKeyDown()) {
-            openConfig(level, player, pContext.getHand());
-            return InteractionResult.sidedSuccess(level.isClientSide());
+        WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
+
+        Direction clickedFace = pContext.getClickedFace();
+
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
         }
 
-        WandMode mode = getMode(wand);
-        BlockPos clickedPos = pContext.getClickedPos();
-        Direction face = pContext.getClickedFace();
+        boolean successfulPlacement = false;
+        switch (currentMode) {
+            case SINGLE:
+                successfulPlacement = placeSingle(level, player, clickedPos, clickedFace, targetState);
+                break;
+                // TODO: implement methods for the other building shape modes
+            case LINE:
+                successfulPlacement = false;
+                break;
+            case RECTANGLE:
+                successfulPlacement = false;
+                break;
+            case SPHERE:
+                successfulPlacement = false;
+                break;
 
-        BlockState targetState = Blocks.STONE.defaultBlockState();
-
-        boolean success = switch (mode) {
-            case SINGLE -> placeSingle(level, player, clickedPos, face, targetState);
-            case LINE -> false;
-            case RECTANGLE -> false;
-            case SPHERE -> false; 
-        };
-
-        if (success) {
-            return InteractionResult.sidedSuccess(level.isClientSide());
         }
 
-        return InteractionResult.FAIL;
+        return successfulPlacement ? InteractionResult.CONSUME : InteractionResult.FAIL;
+    }
+
+    public static ItemStack getBlockSelection(Level pLevel, ItemStack wand) {
+        CompoundTag tag = getSafeCustomTag(wand);
+
+        if (tag.contains(SELECTED_BLOCK_TAG_KEY, CompoundTag.TAG_COMPOUND)) {
+            return ItemStack.parseOptional(pLevel.registryAccess(), tag.getCompound(SELECTED_BLOCK_TAG_KEY));
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public static void setBlockSelection(Level pLevel, ItemStack wand, ItemStack blockStack) {
+        CompoundTag tag = getSafeCustomTag(wand);
+
+        if (blockStack.isEmpty()) {
+            tag.remove(SELECTED_BLOCK_TAG_KEY);
+        }
+        else {
+            tag.put(SELECTED_BLOCK_TAG_KEY, blockStack.save(pLevel.registryAccess()));
+        }
+
+        wand.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+    }
+
+    private static CompoundTag getSafeCustomTag(ItemStack wand) {
+        CustomData customData = wand.get(DataComponents.CUSTOM_DATA);
+        if (customData != null) {
+            return customData.copyTag();
+        }
+        else {
+            return new CompoundTag();
+        }
     }
 
     private boolean placeSingle(Level level, Player player, BlockPos clickedPos, Direction face, BlockState targetState) {
@@ -131,7 +208,7 @@ public class AndesiteWandItem extends Item {
         return false;
     }
 
-    private MenuProvider getMenuProvider(UseOnContext pContext) {
+    private MenuProvider getMenuProvider(InteractionHand pHand) {
         return new MenuProvider() {
             @Override
             public Component getDisplayName() {
@@ -139,9 +216,8 @@ public class AndesiteWandItem extends Item {
             }
 
             @Override
-            @Nullable
             public AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
-                return new WandConfigMenu(id, inv, pContext.getHand());
+                return new WandConfigMenu(id, inv, pHand);
             }
         };
     }

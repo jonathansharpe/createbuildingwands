@@ -17,6 +17,9 @@ public class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<WandMode>> WAND_MODE = register("wand_mode",
         builder -> builder.persistent(WandMode.CODEC));
 
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockReferenceComponent>> WAND_BLOCK = register("wand_block",
+        builder -> builder.persistent(BlockReferenceComponent.CODEC));
+
     private static <T>DeferredHolder<DataComponentType<?>, DataComponentType<T>> register(String name, UnaryOperator<DataComponentType.Builder<T>> builderOperator) {
         return DATA_COMPONENT_TYPES.register(name, () -> builderOperator.apply(DataComponentType.builder()).build());
     }

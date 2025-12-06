@@ -6,6 +6,7 @@
   "mode.createbuildingwands.line": "Line",
   "mode.createbuildingwands.rectangle": "Rectangle",
   "mode.createbuildingwands.sphere": "Sphere",
+  "screen.createbuildingwands.wand_config": "Wand Settings",
 
   "createbuildingwands.configuration.title": "Create Building Wands Configs",
   "createbuildingwands.configuration.section.createbuildingwands.common.toml": "Create Building Wands Configs",
