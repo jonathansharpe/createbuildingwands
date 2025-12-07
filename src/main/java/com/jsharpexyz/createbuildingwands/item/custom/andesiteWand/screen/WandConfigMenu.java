@@ -113,7 +113,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
             this.wandSlotHandler.setStackInSlot(0, storedStack.copyWithCount(1));
         }
 
-        this.addSlot(new SlotItemHandler(wandSlotHandler, 0, WAND_SLOT_X, WAND_SLOT_Y));
+        this.addSlot(new WandBlockSlot(wandSlotHandler, 0, WAND_SLOT_X, WAND_SLOT_Y));
 
         layoutPlayerInventory(pPlayerInventory);
     }
@@ -138,28 +138,6 @@ public class WandConfigMenu extends AbstractContainerMenu{
             return pExtraData.readEnum(InteractionHand.class);
         }
         return InteractionHand.MAIN_HAND;
-    }
-
-    @Override
-    public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (slotId == 0) {
-            System.out.println("Wand Slot Clicked (ID: " + slotId + ", Type: " + clickType + ", Button: " + button + ")");
-
-            ItemStack cursorStack = player.containerMenu.getCarried();
-            Slot wandSlot = this.slots.get(0);
-
-            if (!wandSlot.getItem().isEmpty() && !cursorStack.isEmpty() && clickType == ClickType.PICKUP) {
-                if (cursorStack.getItem() instanceof BlockItem) {
-                    wandSlot.set(ItemStack.EMPTY);
-
-                    super.clicked(slotId, button, clickType, player);
-
-                    return;
-                }
-            }
-        }
-
-        super.clicked(slotId, button, clickType, player);
     }
 
     @Override

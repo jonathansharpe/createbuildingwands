@@ -1,6 +1,7 @@
 package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen;
 
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
@@ -17,7 +18,7 @@ public class WandBlockSlot extends SlotItemHandler {
 
     @Override
     public boolean mayPlace(ItemStack stack) {
-        return !stack.isEmpty();
+        return stack.getItem() instanceof BlockItem;
     }
 
     @Override
