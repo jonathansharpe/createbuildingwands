@@ -56,24 +56,25 @@ public class AndesiteWandItem extends Item {
     }
 
     private static void openConfig(Level level, Player player, InteractionHand hand) {
+        // so this again checks to make sure this is happening on the server side and also that the player is an instance of a ServerPlayer. the ServerPlayer class extends the Player class, but has server attributes, like ServerGamePacketListenerImpl which seems to have to do with the server
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+            // creating a new instance of a MenuProvider, which is an interface type. it inherits other interfaces, which seemingly wouldn't be possible with other classes. this new instance overrides the necessary classes.
             MenuProvider containerProvider = new MenuProvider() {
+                // this just makes the display name which will be displayed when the menu is drawn
                 @Override
                 public Component getDisplayName() {
                     return Component.literal("Wand Configuration");
                 }
 
+                // this makes the menu giving the important info. the level is seemingly no longer relevant since at this point we're in a menu, and not interacting with the world, but merely the players inventory and the menu itself.
                 @Override
                 @Nullable
                 public AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
                     return new WandConfigMenu(id, inv, hand);
                 }
-
-                public void writeExtraData(FriendlyByteBuf buffer) {
-                    buffer.writeEnum(hand);
-                }
             };
 
+            // this then opens the menu we just created
             serverPlayer.openMenu(containerProvider);
         }
     }
@@ -103,19 +104,31 @@ public class AndesiteWandItem extends Item {
         }
     }
 
+    // this is right clicking the item while facing a block
     @Override
     public InteractionResult useOn(UseOnContext pContext) {
+        // the Level type is seemingly the entire dimension that a player is in. it has fields like max size, world border, etc. i guess we need that so we can place blocks in the world
         Level level = pContext.getLevel();
+
+        // the coordinates of the block
         BlockPos clickedPos = pContext.getClickedPos();
+
+        // ItemStack is an 
         ItemStack heldWand = pContext.getItemInHand();
 
+        // the player is the player, makes sense right
         Player player = pContext.getPlayer();
+
+        // presumably this checks to make sure there actually is a player, but shouldn't this be superfluous? how would a wand ever be right clicked if there's no player? idk i will try commenting it out when everything else works
         if (player == null) {
             return InteractionResult.FAIL;
         }
 
+        // checks if the player is shifting, which will bring up the config menu instead. this is the same logic regardless of whether or not the player is looking at a block
         if (player.isCrouching()) {
+            // checks to make sure the player is not client side, i think this is to ensure the server actually knows about it?
             if (!level.isClientSide()) {
+                // calls the openConfig method, passing through the important context
                 openConfig(level, player, pContext.getHand());
             }
             return InteractionResult.CONSUME;

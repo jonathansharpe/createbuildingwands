@@ -22,6 +22,7 @@ import com.jsharpexyz.createbuildingwands.item.custom.WandMode;
 import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.references.Items;
 
 public class WandConfigMenu extends AbstractContainerMenu{
 
@@ -62,16 +63,30 @@ public class WandConfigMenu extends AbstractContainerMenu{
             System.out.println("Wand Slot insertItem() called; Performing overwrite.");
 
             if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) {
+                return ItemStack.EMPTY;
+            }
+            else if (!this.isItemValid(slot, stack)) {
                 return stack;
             }
-
-            ItemStack stackToStore = stack.copyWithCount(1);
-
-            if (!simulate) {
-                this.setStackInSlot(slot, ItemStack.EMPTY);
-                this.setStackInSlot(slot, stackToStore);
+            // this else triggers once we've established that the item that the player is attempting to insert is not empty, is a BlockItem, and the item itself is valid
+            else {
+                // makes sure the slot is actually valid
+                this.validateSlotIndex(slot);
+                // sets the limit of the slot, is set to 1 in the WandBlockSlot class
+                int limit = this.getStackLimit(slot, stack);
+                // if the existing stack is not empty
+                if (limit <= 0) {
+                    return stack;
+                }
+                else {
+                    boolean reachedLimit = stack.getCount() > limit;
+                    if (!simulate) {
+                        this.stacks.set(slot, reachedLimit ? stack.copyWithCount(limit) : stack);
+                    }
+                    this.onContentsChanged(slot);
+                    return reachedLimit ? stack.copyWithCount(stack.getCount() - limit) : ItemStack.EMPTY;
+                }
             }
-            return stack;
         }
 
         @Override
@@ -88,9 +103,12 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
     };
 
+    // this makes the menu n stuff
     public WandConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
+        // calls the parent constructor to make a menu given this information
         super(ModMenuTypes.WAND_CONFIG_MENU.get(), pContainerId);
 
+        // sets some important stuff passed through the parameters
         this.wandHand = pHand;
         this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
         this.wandLevel = pPlayerInventory.player.level();
@@ -98,25 +116,35 @@ public class WandConfigMenu extends AbstractContainerMenu{
         this.actualPlayerInventory = pPlayerInventory;
         this.playerInventoryWrapper = new InvWrapper(pPlayerInventory);
 
+        // this will set the wand mode in the menu to be what it is from the data components, or set a default value of SINGLE if there is none (like when the wand is used for the first time)
         WandMode currentMode = this.wandItem.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
+        // gets a numerical value for the mode selected. for example, if SINGLE is selected, and its the first mode, it'd return 0
         this.initialModeIndex = currentMode.ordinal();
 
+        // the data for the block stored in the wand is fetched here and tells the menu what it is
         BlockReferenceComponent component = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
 
+        // the block inside the wand, set to empty by default i guess
         ItemStack storedStack = ItemStack.EMPTY;
 
+        // if there IS a stored block, it'll apply that to the slot: i.e. the block with stack of 1; could also be empty 
         if (component != null) {
             storedStack = component.blockStack();
         }
 
+        // if the stack is not empty or invalid or whatever, set the stack to be the block there
         if (!storedStack.isEmpty()) {
             this.wandSlotHandler.setStackInSlot(0, storedStack.copyWithCount(1));
         }
 
+        // add the slot to the menu
         this.addSlot(new WandBlockSlot(wandSlotHandler, 0, WAND_SLOT_X, WAND_SLOT_Y));
 
+        // this just draws the inventory on the screen below the wand menu. will need to revise this eventually
         layoutPlayerInventory(pPlayerInventory);
     }
+
+    // TODO: you need to overwrite the clicked() method for more debugging, as the insertItem() method is not being called
 
     public int getInitialModeIndex() { return initialModeIndex; }
 
