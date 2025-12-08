@@ -216,7 +216,61 @@ public class WandConfigMenu extends AbstractContainerMenu{
 
     @Override
     public ItemStack quickMoveStack(Player pPlayer, int pIndex) {
-        return ItemStack.EMPTY;
+        ItemStack originalStack = ItemStack.EMPTY;
+        Slot slot = this.slots.get(pIndex);
+
+        if (slot != null && slot.hasItem()) {
+            ItemStack slotStack = slot.getItem();
+            originalStack = slotStack.copy();
+
+            final int WAND_SLOT_START = 0;
+            final int WAND_SLOT_END = 1;
+            final int PLAYER_INV_START = 1;
+            final int PLAYER_INV_END = PLAYER_INV_START + 36;
+
+            Slot wandReferenceSlot = this.slots.get(WAND_SLOT_START);
+
+            // shift clicking from wand slot to inventory
+            // will clear the slot
+            if (pIndex >= WAND_SLOT_START && pIndex < WAND_SLOT_END) {
+                if (!wandReferenceSlot.getItem().isEmpty()) {
+                    this.wandSlotHandler.extractItem(0, 1, false);
+                    wandReferenceSlot.setChanged();
+                }
+
+                return ItemStack.EMPTY;
+            }
+            else if (pIndex >= PLAYER_INV_START && pIndex < PLAYER_INV_END) {
+                if (!(slotStack.getItem() instanceof BlockItem)) {
+                    return ItemStack.EMPTY;
+                }
+                ItemStack stackToMove = slotStack.copyWithCount(1);
+                this.wandSlotHandler.insertItem(0, stackToMove, false);
+
+                if (wandReferenceSlot.getItem().isEmpty()) {
+                    return originalStack;
+                }
+
+                slot.setChanged();
+                wandReferenceSlot.setChanged();
+                return ItemStack.EMPTY;
+            }
+
+            if (slot.getItem().isEmpty()) {
+                slot.set(ItemStack.EMPTY);
+            }
+            else {
+                slot.setChanged();
+            }
+
+            if (slot.getItem().getCount() == originalStack.getCount()) {
+                return ItemStack.EMPTY;
+            }
+
+            slot.onTake(pPlayer, slot.getItem());
+        }
+
+        return originalStack;
     }
 
     private void layoutPlayerInventory(Inventory pPlayerInventory) {
