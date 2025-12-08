@@ -73,19 +73,15 @@ public class WandConfigMenu extends AbstractContainerMenu{
                 // makes sure the slot is actually valid
                 this.validateSlotIndex(slot);
                 // sets the limit of the slot, is set to 1 in the WandBlockSlot class
-                int limit = this.getStackLimit(slot, stack);
                 // if the existing stack is not empty
-                if (limit <= 0) {
-                    return stack;
+                if (!simulate) {
+                    // i think this should just copy the stack from the cursor with quantity of limit (which is 1)
+                    this.stacks.set(slot, stack.copyWithCount(1));
                 }
-                else {
-                    boolean reachedLimit = stack.getCount() > limit;
-                    if (!simulate) {
-                        this.stacks.set(slot, reachedLimit ? stack.copyWithCount(limit) : stack);
-                    }
-                    this.onContentsChanged(slot);
-                    return reachedLimit ? stack.copyWithCount(stack.getCount() - limit) : ItemStack.EMPTY;
-                }
+                // will change the contents
+                this.onContentsChanged(slot);
+                // idk if this is correct but we'll see
+                return stack.copyWithCount(1);
             }
         }
 
@@ -145,6 +141,56 @@ public class WandConfigMenu extends AbstractContainerMenu{
     }
 
     // TODO: you need to overwrite the clicked() method for more debugging, as the insertItem() method is not being called
+    @Override
+    public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        // debugging statements
+        System.out.println("--- CLICK START ---");
+        System.out.println("Clicked Slot ID: " + slotId);
+        System.out.println("Clicked Cursor Stack: " + player.containerMenu.getCarried());
+
+        if (slotId == 0) {
+            // gets the wand slot
+            Slot wandSlot = this.slots.get(0);
+            // gets what the player is carrying
+            ItemStack cursorStack = player.containerMenu.getCarried();
+
+            System.out.println("    -> Target is WAND SLOT (ID 0)");
+
+            if (!cursorStack.isEmpty() && (cursorStack.getItem() instanceof BlockItem)) {
+                if (clickType == ClickType.THROW || clickType == ClickType.CLONE || clickType == ClickType.SWAP) {
+                    System.out.println("    -> Insertion attempt rejected for specified click type (" + clickType + "). Delegating.");
+                    super.clicked(slotId, button, clickType, player);
+                    return;
+                }
+                else {
+                    ItemStack remainingStack = wandSlotHandler.insertItem(0, cursorStack, false);
+
+                    // player.containerMenu.setCarried(remainingStack);
+                    wandSlot.setChanged();
+                    
+                    System.out.println("    -> MANUAL INSERTION COMPLETE. Remaining on cursor: " + remainingStack.getCount());
+                    System.out.println("--- CLICK END (MANUAL INSERT) ---");
+                    return;
+                }
+            }
+            else if (cursorStack.isEmpty() && (clickType == ClickType.PICKUP || clickType == ClickType.QUICK_MOVE) && !wandSlot.getItem().isEmpty()) {
+                wandSlotHandler.extractItem(0, 1, false);
+                wandSlot.setChanged();
+
+                System.out.println("    -> MANUAL EXTRACTION/CLEAR COMPLETE.");
+                System.out.println("--- CLICK END (MANUAL EXTRACT) ---");
+                return;
+            }
+            else {
+                System.out.println("    -> UNHANDLED WAND SLOT CLICK. Delegating.");
+                super.clicked(slotId, button, clickType, player);
+                System.out.println("--- CLICK END (DELEGATE) ---");
+                return;
+            }
+        }
+        super.clicked(slotId, button, clickType, player);
+        System.out.println("--- CLICK END (DEFAULT) ---");
+    }
 
     public int getInitialModeIndex() { return initialModeIndex; }
 
