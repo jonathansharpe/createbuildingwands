@@ -22,6 +22,8 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -34,6 +36,9 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.Blocks;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 public class AndesiteWandItem extends Item {
 
@@ -166,7 +171,7 @@ public class AndesiteWandItem extends Item {
                 break;
                 // TODO: implement methods for the other building shape modes
             case LINE:
-                successfulPlacement = false;
+                successfulPlacement = placeLine(level, player, heldWand, clickedPos, clickedFace, targetState);
                 break;
             case RECTANGLE:
                 successfulPlacement = false;
@@ -216,9 +221,202 @@ public class AndesiteWandItem extends Item {
         BlockPos placementPos = clickedPos.relative(face);
 
         if (level.getBlockState(placementPos).canBeReplaced()) {
-            return level.setBlock(placementPos, targetState, 3);
+            // get the players inventory
+            // verify that their inventory contains the block they want to place
+            // if it does, place the block
+            // if it doesn't print a message saying "you don't have enough [block] in your inventory"
+            Item requiredItem = targetState.getBlock().asItem();
+            ItemStack blockToConsume = new ItemStack(requiredItem, 1);
+            if (player.isCreative()) {
+                return level.setBlock(placementPos, targetState, 3);
+            }
+            // non creative logic here, i.e. survival
+            else {
+                if (player.getInventory().contains(blockToConsume)) {
+                    if (consumeItem(player.getInventory(), blockToConsume)) {
+                        return level.setBlock(placementPos, targetState, 3);
+                    }
+                }
+                // if the player does not have the block
+                else {
+                    // TODO: rework to match Create's style, like when placing train tracks and you don't have enough
+                    Component blockName = blockToConsume.getHoverName();
+
+                    Minecraft.getInstance().player.displayClientMessage(
+                        Component.literal("You need ")
+                            .append(blockName.copy().withStyle(ChatFormatting.YELLOW))
+                            .append(Component.literal(" in your inventory."))
+                            .withStyle(ChatFormatting.RED),
+                        true
+                    );
+                }
+            }
         }
         return false;
+    }
+
+    private boolean placeLine(Level level, Player player, ItemStack wand, BlockPos clickedPos, Direction face, BlockState targetState) {
+
+        // add logic for shift-right clicking to cancel the line placement
+
+        if (wand.has(ModDataComponents.WAND_START_POS.get())) {
+            BlockPos startPos = wand.get(ModDataComponents.WAND_START_POS.get());
+            BlockPos endPos = clickedPos.relative(face);
+
+            // need to implement below helper method
+            List<BlockPos> positions = lineBlockPositions(startPos, endPos);
+            int count = positions.size();
+
+            if (!player.isCreative()) {
+                if (!canConsumeMultipleItems(player.getInventory(), targetState, count)) {
+                    Component blockName = targetState.getBlock().asItem().getDescription();
+                    player.displayClientMessage(
+                        Component.literal("Need ")
+                            .append(Component.literal(String.valueOf(count)).withStyle(ChatFormatting.YELLOW))
+                            .append(Component.literal(" x "))
+                            .append(blockName.copy().withStyle(ChatFormatting.YELLOW))
+                            .append(Component.literal(" to complete the line."))
+                            .withStyle(ChatFormatting.RED),
+                            true
+                    );
+                    return false;
+                }
+            }
+
+            int placedCount = 0;
+            for (BlockPos pos : positions) {
+                if (level.getBlockState(pos).canBeReplaced()) {
+                    if (level.setBlock(pos, targetState, 3)) {
+                        placedCount++;
+                    }
+                }
+            }
+
+            if (!player.isCreative() && placedCount > 0) {
+                consumeMultipleItems(player.getInventory(), targetState, placedCount);
+            }
+            wand.remove(ModDataComponents.WAND_START_POS.get());
+            player.displayClientMessage(
+                Component.literal("Placed " + placedCount + " blocks in a line.").withStyle(ChatFormatting.GREEN),
+                true
+            );
+            return true;
+        }
+        // if the wand has no start position, set it
+        else {
+            BlockPos startPos = clickedPos.relative(face);
+            wand.set(ModDataComponents.WAND_START_POS.get(), startPos);
+
+            // notify player
+            Component blockName = targetState.getBlock().asItem().getDescription();
+            player.displayClientMessage(
+                Component.literal("Line start position set. Click another location to place a line of ")
+                .append(blockName.copy().withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal("."))
+                .withStyle(ChatFormatting.AQUA),
+                true
+            );
+            
+            return true;
+        }
+    }
+
+    private List<BlockPos> lineBlockPositions(BlockPos start, BlockPos end) {
+        List<BlockPos> positions = new ArrayList<>();
+
+        int dx = end.getX() - start.getX();
+        int dy = end.getY() - start.getY();
+        int dz = end.getZ() - start.getZ();
+
+        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+
+        if (steps == 0) {
+            positions.add(start);
+            return positions;
+        }
+
+        double stepX = (double) dx / steps;
+        double stepY = (double) dy / steps;
+        double stepZ = (double) dz / steps;
+
+        double currentX = start.getX();
+        double currentY = start.getY();
+        double currentZ = start.getZ();
+
+        for (int i = 0; i <= steps; i++) {
+            BlockPos currentPos = new BlockPos(
+                (int) Math.round(currentX),
+                (int) Math.round(currentY),
+                (int) Math.round(currentZ)
+            );
+
+            if (positions.isEmpty() || !positions.get(positions.size() - 1).equals(currentPos)) {
+                positions.add(currentPos);
+            }
+
+            currentX += stepX;
+            currentY += stepY;
+            currentZ += stepZ;
+        }
+        
+        if (!positions.contains(end)) {
+            positions.add(end);
+        }
+
+        return positions;
+    }
+
+    private boolean canConsumeItem(Inventory inventory, ItemStack itemToConsume) {
+        return inventory.contains(itemToConsume);
+    }
+
+    private boolean consumeItem(Inventory inventory, ItemStack itemToConsume) {
+        int slotIndex = inventory.findSlotMatchingItem(itemToConsume);
+
+        if (slotIndex != -1) {
+            ItemStack stackInSlot = inventory.getItem(slotIndex);
+
+            stackInSlot.shrink(itemToConsume.getCount());
+
+            if (stackInSlot.isEmpty()) {
+                inventory.setItem(slotIndex, ItemStack.EMPTY);
+            }
+
+            inventory.setChanged();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean canConsumeMultipleItems(Inventory inventory, BlockState blockState, int count) {
+        Item requiredItem = blockState.getBlock().asItem();
+        int itemsFound = 0;
+
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.getItem() == requiredItem) {
+                itemsFound += stack.getCount();
+                if (itemsFound >= count) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void consumeMultipleItems(Inventory inventory, BlockState blockState, int count) {
+        Item requiredItem = blockState.getBlock().asItem();
+        int remainingToConsume = count;
+
+        for (int i = 0; i < inventory.getContainerSize() && remainingToConsume > 0; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.getItem() == requiredItem) {
+                int toTake = Math.min(stack.getCount(), remainingToConsume);
+                stack.shrink(toTake);
+                remainingToConsume -= toTake;
+            }
+            inventory.setChanged();
+        }
     }
 
     private MenuProvider getMenuProvider(InteractionHand pHand) {
