@@ -11,7 +11,7 @@ import com.mojang.serialization.Codec;
 public enum WandMode implements StringRepresentable {
     SINGLE("single", DyeColor.YELLOW),
     LINE("line", DyeColor.BLUE),
-    RECTANGLE("rectangle", DyeColor.BLUE),
+    PLANE("plane", DyeColor.CYAN),
     SPHERE("sphere", DyeColor.GREEN);
 
     public static final Codec<WandMode> CODEC = StringRepresentable.fromEnum(WandMode::values);

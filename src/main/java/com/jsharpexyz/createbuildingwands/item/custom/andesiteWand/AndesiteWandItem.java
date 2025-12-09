@@ -173,8 +173,8 @@ public class AndesiteWandItem extends Item {
             case LINE:
                 successfulPlacement = placeLine(level, player, heldWand, clickedPos, clickedFace, targetState);
                 break;
-            case RECTANGLE:
-                successfulPlacement = false;
+            case PLANE:
+                successfulPlacement = placePlane(level, player, heldWand, clickedPos, clickedFace, targetState);
                 break;
             case SPHERE:
                 successfulPlacement = false;
@@ -239,7 +239,7 @@ public class AndesiteWandItem extends Item {
                 }
                 // if the player does not have the block
                 else {
-                    // TODO: rework to match Create's style, like when placing train tracks and you don't have enough
+                    // TODO: rework to match Create's style, like when placing train tracks
                     Component blockName = blockToConsume.getHoverName();
 
                     Minecraft.getInstance().player.displayClientMessage(
@@ -263,7 +263,6 @@ public class AndesiteWandItem extends Item {
             BlockPos startPos = wand.get(ModDataComponents.WAND_START_POS.get());
             BlockPos endPos = clickedPos.relative(face);
 
-            // need to implement below helper method
             List<BlockPos> positions = lineBlockPositions(startPos, endPos);
             int count = positions.size();
 
@@ -320,6 +319,67 @@ public class AndesiteWandItem extends Item {
             return true;
         }
     }
+    
+    private boolean placePlane(Level level, Player player, ItemStack wand, BlockPos clickedPos, Direction face, BlockState targetState) {
+        // implement logic to place a plane of blocks
+        // if there is a wand position, place the blocks
+        if (wand.has(ModDataComponents.WAND_START_POS.get())) {
+            BlockPos startPos = wand.get(ModDataComponents.WAND_START_POS.get());
+            BlockPos endPos = clickedPos.relative(face);
+            List<BlockPos> positions = planeBlockPositions(startPos, endPos);
+            int count = positions.size();
+
+            if (!player.isCreative()) {
+                if (!canConsumeMultipleItems(player.getInventory(), targetState, count)) {
+                    Component blockName = targetState.getBlock().asItem().getDescription();
+                    player.displayClientMessage(
+                        Component.literal("Need ")
+                            .append(Component.literal(String.valueOf(count)).withStyle(ChatFormatting.YELLOW))
+                            .append(Component.literal(" x "))
+                            .append(blockName.copy().withStyle(ChatFormatting.YELLOW))
+                            .append(Component.literal(" to complete the plane."))
+                            .withStyle(ChatFormatting.RED),
+                            true
+                    );
+                    return false;
+                }
+            }
+            int placedCount = 0;
+            for (BlockPos pos : positions) {
+                if (level.getBlockState(pos).canBeReplaced()) {
+                    if (level.setBlock(pos, targetState, 3)) {
+                        placedCount++;
+                    }
+                }
+            }
+
+            if (!player.isCreative() && placedCount > 0) {
+                consumeMultipleItems(player.getInventory(), targetState, placedCount);
+            }
+            wand.remove(ModDataComponents.WAND_START_POS.get());
+            player.displayClientMessage(
+                Component.literal("Placed " + placedCount + " blocks in a line.").withStyle(ChatFormatting.GREEN),
+                true
+            );
+            return true;
+        }
+        // if there's no start position, set it
+        else {
+            BlockPos startPos = clickedPos.relative(face);
+            wand.set(ModDataComponents.WAND_START_POS.get(), startPos);
+
+            // notify player
+            Component blockName = targetState.getBlock().asItem().getDescription();
+            player.displayClientMessage(
+                    Component.literal("Plane start position set. Click another location to place a plane of ")
+                            .append(blockName.copy().withStyle(ChatFormatting.YELLOW))
+                            .append(Component.literal("."))
+                            .withStyle(ChatFormatting.AQUA),
+                    true);
+
+            return true;
+        }
+    }
 
     private List<BlockPos> lineBlockPositions(BlockPos start, BlockPos end) {
         List<BlockPos> positions = new ArrayList<>();
@@ -363,6 +423,35 @@ public class AndesiteWandItem extends Item {
             positions.add(end);
         }
 
+        return positions;
+    }
+
+    private List<BlockPos> planeBlockPositions(BlockPos start, BlockPos end) {
+        List<BlockPos> positions = new ArrayList<>();
+
+        // one of the axes must remain the same
+        // could add logic for sloped planes but begin with straight ones first
+        int minX = Math.min(start.getX(), end.getX());
+        int maxX = Math.max(start.getX(), end.getX());
+        int minY = Math.min(start.getY(), end.getY());
+        int maxY = Math.max(start.getY(), end.getY());
+        int minZ = Math.min(start.getZ(), end.getZ());
+        int maxZ = Math.max(start.getZ(), end.getZ());
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos currentPos = new BlockPos(
+                        x,
+                        y,
+                        z
+                    );
+                    if (positions.isEmpty() || !positions.get(positions.size() - 1).equals(currentPos)) {
+                        positions.add(currentPos);
+                    }
+                }
+            }
+        }
         return positions;
     }
 

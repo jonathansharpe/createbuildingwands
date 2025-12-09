@@ -4,7 +4,7 @@
   "item.createbuildingwands.andesite_wand": "Andesite Wand",
   "mode.createbuildingwands.single": "Single",
   "mode.createbuildingwands.line": "Line",
-  "mode.createbuildingwands.rectangle": "Rectangle",
+  "mode.createbuildingwands.plane": "Plane",
   "mode.createbuildingwands.sphere": "Sphere",
   "screen.createbuildingwands.wand_config": "Wand Settings",
 
