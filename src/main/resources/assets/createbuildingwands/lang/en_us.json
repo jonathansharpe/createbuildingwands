@@ -5,6 +5,7 @@
   "mode.createbuildingwands.single": "Single",
   "mode.createbuildingwands.line": "Line",
   "mode.createbuildingwands.plane": "Plane",
+  "mode.createbuildingwands.cube": "Cube",
   "mode.createbuildingwands.sphere": "Sphere",
   "screen.createbuildingwands.wand_config": "Wand Settings",
 

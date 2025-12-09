@@ -9,9 +9,11 @@ import net.minecraft.world.item.DyeColor;
 import com.mojang.serialization.Codec;
 
 public enum WandMode implements StringRepresentable {
+    // dye color may be unnecessary
     SINGLE("single", DyeColor.YELLOW),
     LINE("line", DyeColor.BLUE),
     PLANE("plane", DyeColor.CYAN),
+    CUBE("cube", DyeColor.CYAN),
     SPHERE("sphere", DyeColor.GREEN);
 
     public static final Codec<WandMode> CODEC = StringRepresentable.fromEnum(WandMode::values);
