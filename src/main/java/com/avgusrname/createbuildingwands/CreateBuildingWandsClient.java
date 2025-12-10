@@ -1,4 +1,4 @@
-package com.jsharpexyz.createbuildingwands;
+package com.avgusrname.createbuildingwands;
 
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;

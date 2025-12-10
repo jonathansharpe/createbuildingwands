@@ -1,6 +1,6 @@
-package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
-import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.AbstractContainerMenu;

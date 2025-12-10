@@ -1,6 +1,6 @@
-package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
-import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;

@@ -1,8 +1,8 @@
-package com.jsharpexyz.createbuildingwands.networking.packet;
+package com.avgusrname.createbuildingwands.networking.packet;
 
-import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
-import com.jsharpexyz.createbuildingwands.item.custom.WandMode;
-import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;

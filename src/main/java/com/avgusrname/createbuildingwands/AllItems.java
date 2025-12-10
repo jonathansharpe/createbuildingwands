@@ -1,7 +1,4 @@
-package com.jsharpexyz.createbuildingwands;
-
-import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
-import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
+package com.avgusrname.createbuildingwands;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -17,6 +14,9 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import java.util.function.Supplier;
+
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 
 public class AllItems {
     public static final DeferredRegister.Items ITEMS = 

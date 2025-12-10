@@ -1,4 +1,4 @@
-package com.jsharpexyz.createbuildingwands.item.custom;
+package com.avgusrname.createbuildingwands.item.custom;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;

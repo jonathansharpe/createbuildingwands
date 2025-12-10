@@ -1,10 +1,4 @@
-package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand;
-
-import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
-import com.jsharpexyz.createbuildingwands.component.BlockReferenceComponent;
-import com.jsharpexyz.createbuildingwands.component.ModDataComponents;
-import com.jsharpexyz.createbuildingwands.item.custom.WandMode;
-import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
+package com.avgusrname.createbuildingwands.item.custom.andesiteWand;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -36,6 +30,13 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.Blocks;
 import javax.annotation.Nullable;
+
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

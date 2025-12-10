@@ -1,4 +1,4 @@
-package com.jsharpexyz.createbuildingwands.component;
+package com.avgusrname.createbuildingwands.component;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;

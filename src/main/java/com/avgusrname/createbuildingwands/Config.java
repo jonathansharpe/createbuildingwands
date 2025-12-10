@@ -1,4 +1,4 @@
-package com.jsharpexyz.createbuildingwands;
+package com.avgusrname.createbuildingwands;
 
 import java.util.List;
 import java.util.Set;

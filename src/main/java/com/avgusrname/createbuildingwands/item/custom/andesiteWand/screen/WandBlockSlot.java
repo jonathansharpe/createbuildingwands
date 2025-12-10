@@ -1,4 +1,4 @@
-package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;

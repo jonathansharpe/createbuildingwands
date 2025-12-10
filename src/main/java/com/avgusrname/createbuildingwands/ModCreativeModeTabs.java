@@ -1,4 +1,4 @@
-package com.jsharpexyz.createbuildingwands;
+package com.avgusrname.createbuildingwands;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;

@@ -1,13 +1,13 @@
-package com.jsharpexyz.createbuildingwands;
+package com.avgusrname.createbuildingwands;
 
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.jsharpexyz.createbuildingwands.component.ModDataComponents;
-import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
-import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
-import com.jsharpexyz.createbuildingwands.networking.packet.WandModePacket;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
+import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.EventBusSubscriber;

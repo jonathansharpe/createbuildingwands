@@ -1,4 +1,4 @@
-package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
@@ -16,10 +16,10 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
-import com.jsharpexyz.createbuildingwands.component.BlockReferenceComponent;
-import com.jsharpexyz.createbuildingwands.component.ModDataComponents;
-import com.jsharpexyz.createbuildingwands.item.custom.WandMode;
-import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.references.Items;

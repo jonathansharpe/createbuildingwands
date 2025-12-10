@@ -1,9 +1,9 @@
-package com.jsharpexyz.createbuildingwands.component;
+package com.avgusrname.createbuildingwands.component;
 
 import java.util.function.UnaryOperator;
 
-import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
-import com.jsharpexyz.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.item.custom.WandMode;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;

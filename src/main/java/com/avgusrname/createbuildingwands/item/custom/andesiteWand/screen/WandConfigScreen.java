@@ -1,7 +1,9 @@
-package com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
-import com.jsharpexyz.createbuildingwands.CreateBuildingWands;
-import com.jsharpexyz.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
@@ -19,8 +21,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.vault.VaultBlockEntity.Server;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.network.chat.Component;
-import com.jsharpexyz.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
-import com.jsharpexyz.createbuildingwands.networking.packet.WandModePacket;
 
 import java.util.Arrays;
 import java.util.List;
