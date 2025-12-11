@@ -5,8 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
+import com.avgusrname.createbuildingwands.networking.packet.SetPreviewStatePacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
 
 import net.neoforged.bus.api.IEventBus;
@@ -44,11 +46,22 @@ public class CreateBuildingWands {
     // supposed client side event handler
     @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientSetupEvents {
+
+        @SubscribeEvent
+        public static void clientSetup(FMLClientSetupEvent event) {
+            event.enqueueWork(() -> {
+                LOGGER.info("Client setup complete. Ensuring WandClientPreview is loaded...");
+                WandClientPreview.clearPreviewPositions();
+            });
+        }
+
         @SubscribeEvent
         public static void registerMenuScreens(RegisterMenuScreensEvent event) {
-            LOGGER.info("Attempting to register WandCOnfigScreen");
-
-            event.register(ModMenuTypes.WAND_CONFIG_MENU.get(), WandConfigScreen::new);
+            LOGGER.info("Registering WandConfigScreen...");
+            event.register(
+                ModMenuTypes.WAND_CONFIG_MENU.get(), 
+                WandConfigScreen::new
+            );
         }
 
         @SubscribeEvent
@@ -61,6 +74,16 @@ public class CreateBuildingWands {
                     context.enqueueWork(() -> WandModePacket.handleOnServer(payload, context));
                 }
             );
+
+            registrar.playBidirectional(
+                SetPreviewStatePacket.TYPE,
+                SetPreviewStatePacket.STREAM_CODEC,
+                (payload, context) -> {
+                    context.enqueueWork(() -> payload.handle(context));
+                }
+            );
+
+            LOGGER.info("Networking Payloads Registered directly in main mod class.");
         }
     }
 
