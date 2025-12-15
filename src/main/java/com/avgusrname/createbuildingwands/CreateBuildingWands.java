@@ -8,8 +8,8 @@ import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
-import com.avgusrname.createbuildingwands.networking.packet.SetPreviewStatePacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
+import com.avgusrname.createbuildingwands.networking.packet.clienttoserver.WandModePacket;
+import com.avgusrname.createbuildingwands.networking.packet.servertoclient.WandPreviewPacket;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -44,7 +44,7 @@ public class CreateBuildingWands {
     }
     
     // supposed client side event handler
-    @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    @EventBusSubscriber(modid = MODID, value = Dist.CLIENT)
     public static class ClientSetupEvents {
 
         @SubscribeEvent
@@ -76,10 +76,10 @@ public class CreateBuildingWands {
             );
 
             registrar.playBidirectional(
-                SetPreviewStatePacket.TYPE,
-                SetPreviewStatePacket.STREAM_CODEC,
+                WandPreviewPacket.TYPE,
+                WandPreviewPacket.STREAM_CODEC,
                 (payload, context) -> {
-                    context.enqueueWork(() -> payload.handle(context));
+                    context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context));
                 }
             );
 

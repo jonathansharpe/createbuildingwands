@@ -1,4 +1,4 @@
-package com.avgusrname.createbuildingwands.networking.packet;
+package com.avgusrname.createbuildingwands.networking.packet.clienttoserver;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;

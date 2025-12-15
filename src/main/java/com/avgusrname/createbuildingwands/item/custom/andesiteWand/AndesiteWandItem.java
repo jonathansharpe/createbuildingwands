@@ -34,10 +34,11 @@ import javax.annotation.Nullable;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.networking.ModPackets;
-import com.avgusrname.createbuildingwands.networking.packet.SetPreviewStatePacket;
+import com.avgusrname.createbuildingwands.networking.packet.servertoclient.WandPreviewPacket;
 import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
 
 import java.util.ArrayList;
@@ -128,6 +129,29 @@ public class AndesiteWandItem extends Item {
         // the player is the player, makes sense right
         Player player = pContext.getPlayer();
 
+        // Client-side: drive visual preview between clicks
+        if (level.isClientSide()) {
+            if (player != null && !player.isCrouching()) {
+                WandMode currentModeClient = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
+                Direction clickedFaceClient = pContext.getClickedFace();
+
+                if (heldWand.has(ModDataComponents.WAND_START_POS.get())) {
+                    // Second click: clear active preview state; server will handle actual placement
+                    WandClientPreview.updateActiveState(null, null);
+                    WandClientPreview.clearPreviewPositions();
+                } else {
+                    // First click: set start position, mode, and preview block for client-side preview
+                    BlockPos startPosClient = clickedPos.relative(clickedFaceClient);
+                    WandClientPreview.updateActiveState(startPosClient, currentModeClient);
+
+                    BlockReferenceComponent blockComponentClient = heldWand.get(ModDataComponents.WAND_BLOCK.get());
+                    ItemStack selection = blockComponentClient != null ? blockComponentClient.blockStack() : ItemStack.EMPTY;
+                    WandClientPreview.setPreviewBlock(selection);
+                }
+            }
+            return InteractionResult.SUCCESS;
+        }
+
         // presumably this checks to make sure there actually is a player, but shouldn't this be superfluous? how would a wand ever be right clicked if there's no player? idk i will try commenting it out when everything else works
         if (!(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.FAIL;
@@ -163,10 +187,6 @@ public class AndesiteWandItem extends Item {
         WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
 
         Direction clickedFace = pContext.getClickedFace();
-
-        if (level.isClientSide()) {
-            return InteractionResult.SUCCESS;
-        }
 
         boolean successfulPlacement = false;
         switch (currentMode) {
@@ -270,8 +290,6 @@ public class AndesiteWandItem extends Item {
             if (wand.has(ModDataComponents.WAND_START_POS.get())) {
                 wand.remove(ModDataComponents.WAND_START_POS.get());
 
-                ModPackets.sendToClient(player, new SetPreviewStatePacket(null, null));
-
                 player.displayClientMessage(Component.literal(mode.name() + " selection cancelled.").withStyle(ChatFormatting.YELLOW), true);
             }
             return true;
@@ -327,9 +345,8 @@ public class AndesiteWandItem extends Item {
             if (!player.isCreative() && placedCount > 0) {
                 consumeMultipleItems(player.getInventory(), targetState, placedCount);
             }
+
             wand.remove(ModDataComponents.WAND_START_POS.get());
-            
-            ModPackets.sendToClient(player, new SetPreviewStatePacket(null, null));
 
             player.displayClientMessage(
                 Component.literal("Placed " + placedCount + " blocks in a " + String.valueOf(mode)).withStyle(ChatFormatting.GREEN),
@@ -342,15 +359,13 @@ public class AndesiteWandItem extends Item {
             BlockPos startPos = clickedPos.relative(face);
             wand.set(ModDataComponents.WAND_START_POS.get(), startPos);
 
-            ModPackets.sendToClient(player, new SetPreviewStatePacket(startPos, mode));
-
             player.displayClientMessage(
                     Component.literal("Start position set. Click another location to place a " + String.valueOf(mode) + " of ")
                             .append(blockName.copy().withStyle(ChatFormatting.YELLOW))
                             .append(Component.literal("."))
                             .withStyle(ChatFormatting.AQUA),
                     true);
-            
+
             return true;
         }
     }

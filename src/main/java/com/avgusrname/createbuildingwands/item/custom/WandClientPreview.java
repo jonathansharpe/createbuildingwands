@@ -4,12 +4,9 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
 
-import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
-import com.google.common.eventbus.Subscribe;
-import com.jcraft.jorbis.Block;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -28,11 +25,15 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
-@EventBusSubscriber(value = Dist.CLIENT, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(value = Dist.CLIENT)
 public class WandClientPreview {
     @Nullable
     private static BlockPos activeStartPos = null;
@@ -41,6 +42,9 @@ public class WandClientPreview {
     private static WandMode activeMode = null;
 
     private static List<BlockPos> previewPositions = Collections.emptyList();
+
+    @Nullable
+    private static ItemStack previewBlock = null;
 
     public static void updateActiveState(@Nullable BlockPos startPos, @Nullable WandMode mode) {
         activeStartPos = startPos;
@@ -54,8 +58,13 @@ public class WandClientPreview {
         previewPositions = positions;
     }
 
+    public static void setPreviewBlock(@Nullable ItemStack stack) {
+        previewBlock = stack;
+    }
+
     public static void clearPreviewPositions() {
         previewPositions = Collections.emptyList();
+        previewBlock = null;
     }
 
     @SubscribeEvent
@@ -104,12 +113,13 @@ public class WandClientPreview {
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
 
-        System.out.println("attempting to render the things");
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
-
         if (previewPositions.isEmpty()) return;
 
         Minecraft mc = Minecraft.getInstance();
+        ClientLevel level = mc.level;
+        if (level == null) return;
+
         Camera camera = event.getCamera();
         Vec3 cameraPos = camera.getPosition();
 
@@ -120,15 +130,47 @@ public class WandClientPreview {
         RenderSystem.defaultBlendFunc();
 
         MultiBufferSource.BufferSource buffer = mc.renderBuffers().bufferSource();
-        VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.lines());
 
         poseStack.pushPose();
-
         poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
+        // Determine which block state to render for the preview
+        BlockState stateToRender = null;
+        if (previewBlock != null && !previewBlock.isEmpty()) {
+            Block block = Block.byItem(previewBlock.getItem());
+            if (block != null) {
+                stateToRender = block.defaultBlockState();
+            }
+        }
+
+        BlockRenderDispatcher dispatcher = mc.getBlockRenderer();
+
+        // First: render slightly transparent block models, if we have a valid block.
+        // We rely on the translucent render type so alpha values on the baked quads can blend.
+        if (stateToRender != null) {
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+
+            for (BlockPos pos : previewPositions) {
+                poseStack.pushPose();
+                poseStack.translate(pos.getX(), pos.getY(), pos.getZ());
+                dispatcher.renderBatched(
+                        stateToRender,
+                        pos,
+                        level,
+                        poseStack,
+                        buffer.getBuffer(RenderType.translucent()),
+                        false,
+                        level.random
+                );
+                poseStack.popPose();
+            }
+        }
+
+        // Second: always render wireframe boxes on top for clarity
+        VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.lines());
         for (BlockPos pos : previewPositions) {
             AABB box = new AABB(pos);
-
             LevelRenderer.renderLineBox(
                     poseStack,
                     vertexConsumer,
@@ -137,13 +179,11 @@ public class WandClientPreview {
             );
         }
 
-
         poseStack.popPose();
 
-        buffer.endBatch(RenderType.lines());
+        buffer.endBatch();
 
         RenderSystem.enableDepthTest();
         RenderSystem.disableBlend();
     }
-
 }
