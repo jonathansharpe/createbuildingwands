@@ -19,6 +19,18 @@ group = mod_group_id
 
 repositories {
     // Add here additional repositories if required by some of the dependencies below.
+    maven {
+        name = 'Neoforge maven'
+        url = 'https://maven.neoforged.net/releases/'
+    }
+    maven {
+        name = 'createmod maven'
+        url = 'https://maven.createmod.net/'
+    }
+    maven {
+        name = 'registrate maven'
+        url = "https://maven.ithundxr.dev/snapshots"
+    }
 }
 
 base {
@@ -114,14 +126,16 @@ configurations {
 dependencies {
 
     implementation "net.neoforged:neoforge:${neo_version}"
+    implementation("com.simibubi.create:create-${minecraft_version}:${create_neoforge_version}:slim") {
+        transitive = false
+    }
+    implementation "com.tterrag.registrate:Registrate:${registrate_neoforge_version}"
 
     // re-enable below dependencies when other things are working
 
-    // modImplementation("com.simibubi.create:create-${minecraft_version}:{create_neoforge_version}:slim") {transitive = false}
-    // modImplementation("com.tterag.registrate:Registrate:${registrate_neoforge_version}")
-    // modImplementation("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_neoforge_version}")
-    // compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_neoforge_version}")
-    // modImplementation("net.createmod.ponder:Ponder-NeoForge-${minecraft_version}:${ponder_version}")
+    // implementation("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_neoforge_version}")
+    compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_neoforge_version}")
+    implementation("net.createmod.ponder:Ponder-NeoForge-${minecraft_version}:${ponder_version}")
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
@@ -137,7 +151,11 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_license            : mod_license,
             mod_version            : mod_version,
             mod_authors            : mod_authors,
-            mod_description        : mod_description
+            mod_description        : mod_description,
+            create_neoforge_version: create_neoforge_version,
+            registrate_neoforge_version : registrate_neoforge_version,
+            flywheel_neoforge_version : flywheel_neoforge_version,
+            ponder_version : ponder_version
     ]
     inputs.properties replaceProperties
     expand replaceProperties

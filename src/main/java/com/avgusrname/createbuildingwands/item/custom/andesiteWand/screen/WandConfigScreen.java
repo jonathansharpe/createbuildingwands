@@ -102,9 +102,19 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
 
         guiGraphics.blit(GUI_TEXTURE, this.leftPos + 7, this.topPos + WandConfigMenu.INVENTORY_START_Y, 7, WandConfigMenu.INVENTORY_START_Y, 162, 94);
 
+        // Draw regular block slot background
         guiGraphics.blit(GUI_TEXTURE,
             this.leftPos + WandConfigMenu.WAND_SLOT_X - 1,
             this.topPos + WandConfigMenu.WAND_SLOT_Y - 1,
+            0,
+            this.imageHeight,
+            18,
+            18
+        );
+        // Draw copycat block slot background
+        guiGraphics.blit(GUI_TEXTURE,
+            this.leftPos + WandConfigMenu.COPYCAT_SLOT_X - 1,
+            this.topPos + WandConfigMenu.COPYCAT_SLOT_Y - 1,
             0,
             this.imageHeight,
             18,

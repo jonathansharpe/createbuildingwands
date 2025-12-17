@@ -15,6 +15,8 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -29,6 +31,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
+
+import com.simibubi.create.content.decoration.copycat.CopycatBlock;
+import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
+
 import javax.annotation.Nullable;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
@@ -144,8 +151,16 @@ public class AndesiteWandItem extends Item {
                     BlockPos startPosClient = clickedPos.relative(clickedFaceClient);
                     WandClientPreview.updateActiveState(startPosClient, currentModeClient);
 
+                    // Prefer copycat block for preview if set, otherwise use regular block
+                    BlockReferenceComponent copycatComponentClient = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
                     BlockReferenceComponent blockComponentClient = heldWand.get(ModDataComponents.WAND_BLOCK.get());
-                    ItemStack selection = blockComponentClient != null ? blockComponentClient.blockStack() : ItemStack.EMPTY;
+                    
+                    ItemStack selection = ItemStack.EMPTY;
+                    if (copycatComponentClient != null && !copycatComponentClient.blockStack().isEmpty()) {
+                        selection = copycatComponentClient.blockStack();
+                    } else if (blockComponentClient != null && !blockComponentClient.blockStack().isEmpty()) {
+                        selection = blockComponentClient.blockStack();
+                    }
                     WandClientPreview.setPreviewBlock(selection);
                 }
             }
@@ -168,9 +183,23 @@ public class AndesiteWandItem extends Item {
         }
 
         BlockState targetState = Blocks.STONE.defaultBlockState();
+        
+        // Prefer copycat block if set, otherwise use regular block
+        BlockReferenceComponent copycatComponent = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
         BlockReferenceComponent blockComponent = heldWand.get(ModDataComponents.WAND_BLOCK.get());
 
-        if (blockComponent != null) {
+        // Check copycat block first
+        if (copycatComponent != null) {
+            ItemStack storedStack = copycatComponent.blockStack();
+            if (!storedStack.isEmpty()) {
+                Block blockToPlace = Block.byItem(storedStack.getItem());
+                if (blockToPlace != Blocks.AIR) {
+                    targetState = blockToPlace.defaultBlockState();
+                }
+            }
+        }
+        // Fall back to regular block if copycat not set
+        else if (blockComponent != null) {
             ItemStack storedStack = blockComponent.blockStack();
             if (!storedStack.isEmpty()) {
                 Block blockToPlace = Block.byItem(storedStack.getItem());
@@ -180,7 +209,10 @@ public class AndesiteWandItem extends Item {
             }
         }
 
-        if (targetState.is(Blocks.STONE) && (blockComponent == null || blockComponent.blockStack().isEmpty())) {
+        // Only fail if neither block is set
+        if (targetState.is(Blocks.STONE) && 
+            (copycatComponent == null || copycatComponent.blockStack().isEmpty()) &&
+            (blockComponent == null || blockComponent.blockStack().isEmpty())) {
             return InteractionResult.PASS;
         }
 
@@ -334,10 +366,13 @@ public class AndesiteWandItem extends Item {
                 }
             }
             int placedCount = 0;
+            
+            
             for (BlockPos pos : positions) {
                 if (level.getBlockState(pos).canBeReplaced()) {
                     if (level.setBlock(pos, targetState, 3)) {
                         placedCount++;
+                        // Track copycat block positions for later texture application
                     }
                 }
             }
@@ -370,6 +405,18 @@ public class AndesiteWandItem extends Item {
         }
     }
 
+    private void placeCopycatBlocks(Level level, Player player, BlockPos startPos, List<BlockPos> positions, ItemStack wand) {
+        BlockReferenceComponent regularBlockComponent = wand.get(ModDataComponents.WAND_BLOCK.get());
+        BlockReferenceComponent copycatBlockComponent = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+
+        if (regularBlockComponent == null || copycatBlockComponent == null) {
+            player.displayClientMessage(Component.literal("Please configure both blocks"), true);
+            return;
+        }
+        
+        ItemStack regularBlockStack = regularBlockComponent.blockStack();
+        ItemStack copycatBlockStack = copycatBlockComponent.blockStack();
+    }
 
     private boolean canConsumeItem(Inventory inventory, ItemStack itemToConsume) {
         return inventory.contains(itemToConsume);
