@@ -1,13 +1,10 @@
 package com.avgusrname.createbuildingwands.item.custom.andesiteWand;
 
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -18,31 +15,25 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
-
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
 
 import javax.annotation.Nullable;
+
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
@@ -55,9 +46,7 @@ import com.avgusrname.createbuildingwands.networking.packet.servertoclient.WandP
 import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 public class AndesiteWandItem extends Item {
 
@@ -418,7 +407,9 @@ public class AndesiteWandItem extends Item {
 
             if (useCopycat && !copycatPositions.isEmpty()) {
                 if (!level.isClientSide) {
-                    applyCopycatMaterial(level, copycatPositions, materialState);
+                    Item blockItem = materialState.getBlock().asItem();
+                    ItemStack materialItemStack = new ItemStack(blockItem, 1);
+                    applyCopycatMaterial(level, copycatPositions, materialState, materialItemStack);
                 }
             }
 
@@ -451,59 +442,36 @@ public class AndesiteWandItem extends Item {
         }
     }
 
-    private void applyCopycatMaterial(Level level, List<BlockPos> positions, BlockState materialState) {
-        System.out.println("applyCopycatMaterial called on " + (level.isClientSide ? "CLIENT" : "SERVER"));
-        System.out.println("Material to apply: " + materialState);
-        System.out.println("Number of positions: " + positions.size());
-
+    private void applyCopycatMaterial(Level level, List<BlockPos> positions, BlockState materialState, ItemStack materialItemStack) {
         if (level.isClientSide) {
             System.out.println("ERROR: running on client, aborting");
             return;
         }
 
         for (BlockPos pos : positions) {
-            System.out.println("\n--- Processing position: " + pos + " ---");
             BlockState blockState = level.getBlockState(pos);
-            System.out.println("Block at position: " + blockState.getBlock().getDescriptionId());
 
             BlockEntity be = level.getBlockEntity(pos);
 
             if (be == null) continue;
 
-            System.out.println("Block entity class: " + be.getClass().getName());
-            System.out.println("Block entity interfaces: " + Arrays.toString(be.getClass().getInterfaces()));
-            System.out.println("Is ICopycatBlockEntity? " + (be instanceof ICopycatBlockEntity));
-            System.out.println("Is CopycatBlockEntity? " + (be instanceof CopycatBlockEntity));
-
             if (be instanceof ICopycatBlockEntity copycatBE) {
-                System.out.println(">>> Matched ICopycatBlockEntity (Copycats+)");
                 copycatBE.setMaterial(materialState);
-
-                if (level instanceof ServerLevel serverLevel) {
-                    CompoundTag nbt = be.saveWithoutMetadata(serverLevel.registryAccess());
-                    System.out.println("NBT after setMaterial: " + nbt);
-                }
-
+                copycatBE.setConsumedItem(materialItemStack);
+                copycatBE.notifyUpdate();
                 be.setChanged();
 
                 if (level instanceof ServerLevel serverLevel) {
                     serverLevel.getChunkSource().blockChanged(pos);
+                    serverLevel.getChunk(pos).setUnsaved(true);
                 }
-
-                level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), Block.UPDATE_ALL);
 
                 BlockState verifyMaterial = copycatBE.getMaterial();
-                System.out.println("Material verified as: " + verifyMaterial);
             }
             else if (be instanceof CopycatBlockEntity createCopycatBE) {
-                System.out.println(">>> Matched CopycatBlockEntity (Create)");
                 createCopycatBE.setMaterial(materialState);
-
-                if (level instanceof ServerLevel serverLevel) {
-                    CompoundTag nbt = be.saveWithoutMetadata(serverLevel.registryAccess());
-                    System.out.println("Block entity NBT: " + nbt);
-                }
-
+                createCopycatBE.setConsumedItem(materialItemStack);
+                createCopycatBE.notifyUpdate();
                 createCopycatBE.setChanged();
 
                 if (level instanceof ServerLevel serverLevel) {
@@ -515,6 +483,22 @@ public class AndesiteWandItem extends Item {
             }
             else {
                 System.out.println("ERROR: block entity does not match a copycat type");
+            }
+        }
+    }
+
+    private void debugLoadedCopycat(Level level, BlockPos pos) {
+        if (level.isClientSide) return;
+
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof ICopycatBlockEntity copycatBE) {
+            BlockState material = copycatBE.getMaterial();
+            System.out.println("Loaded copycat at " + pos);
+            System.out.println("Material: " + material);
+
+            if (level instanceof ServerLevel serverLevel) {
+                CompoundTag nbt = be.saveWithoutMetadata(serverLevel.registryAccess());
+                System.out.println("Current NBT: " + nbt);
             }
         }
     }
