@@ -5,15 +5,20 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -21,12 +26,16 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
+import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
+import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlockEntity;
 
 import javax.annotation.Nullable;
 
@@ -140,6 +149,8 @@ public class AndesiteWandItem extends Item {
         // the player is the player, makes sense right
         Player player = pContext.getPlayer();
 
+        BlockPlaceContext placeContext = new BlockPlaceContext(pContext);
+
         // Client-side: drive visual preview between clicks
         if (level.isClientSide()) {
             if (player != null && !player.isCrouching()) {
@@ -227,16 +238,16 @@ public class AndesiteWandItem extends Item {
         boolean successfulPlacement = false;
         switch (currentMode) {
             case SINGLE:
-                successfulPlacement = placeBlock(level, serverPlayer, heldWand, clickedPos, clickedFace);
+                successfulPlacement = placeBlock(level, serverPlayer, heldWand, placeContext);
                 break;
             case LINE:
-                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, clickedPos, clickedFace);
+                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
                 break;
             case PLANE:
-                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, clickedPos, clickedFace);
+                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
                 break;
             case CUBE:
-                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, clickedPos, clickedFace);
+                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
                 break;
             case SPHERE:
                 successfulPlacement = false;
@@ -256,8 +267,9 @@ public class AndesiteWandItem extends Item {
      * @param face like the other methods, supposed to actually determine the direction of the block but doesn't really do that
      * @return returns true if the block was placed, false if not; need to use better for debugging
      */
-    private boolean placeBlock(Level level, ServerPlayer player, ItemStack wand, BlockPos clickedPos, Direction face) {
-        BlockPos placementPos = clickedPos.relative(face);
+    private boolean placeBlock(Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
+        BlockPos placementPos = context.getClickedPos();
+        Direction face = context.getClickedFace();
 
         BlockReferenceComponent regularComponent = wand.get(ModDataComponents.WAND_BLOCK.get());
         BlockReferenceComponent copycatComponent = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
@@ -295,18 +307,20 @@ public class AndesiteWandItem extends Item {
                 return false;
             }
 
-            BlockState copycatState = copycatBlock.defaultBlockState();
+            BlockState copycatState = getOrientedBlockState(copycatBlock, context);
 
             if (level.setBlock(placementPos, copycatState, 3)) {
                 if (!level.isClientSide) {
-                    applyCopycatMaterial(level, placementPos, regularState, regularStack);
+                    String property = determinePropertyFromFace(copycatState, face);
+                    applyCopycatMaterial(level, placementPos, regularState, regularStack, property);
                 }
                 return true;
             }
             return false;
         }
         else {
-            return level.setBlock(placementPos, regularState, 3);
+            BlockState orientedRegularState = getOrientedBlockState(regularBlockItem.getBlock(), context);
+            return level.setBlock(placementPos, orientedRegularState, 3);
         }
     }
 
@@ -320,9 +334,13 @@ public class AndesiteWandItem extends Item {
      * @param face the direction at which the player is looking, but it's not really working i don't think? fix this
      * @return will return a bool if the placement succeeded or failed. will need to utilize this more to better identify problems
      */
-    private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPos clickedPos, Direction face) {
+    private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
         // TODO evaluate the usefulness of the `face` parameter, it's supposed to determine the direction at which the blocks are placed (like stairs, logs, etc) but it's not working at the time of writing
         // TODO implement a randomizer functionality, using the create list filter
+
+        BlockPos clickedPos = context.getClickedPos();
+        Direction face = context.getClickedFace();
+        BlockPos originalClickedPos = clickedPos;
 
         System.out.println("=== placeMultiple called on " + (level.isClientSide ? "CLIENT" : "SERVER") + " ===");
 
@@ -366,13 +384,15 @@ public class AndesiteWandItem extends Item {
 
             BlockState regularState = regularBlockItem.getBlock().defaultBlockState();
             BlockState copycatState = regularState;
+            Block copycatBlock = null;
+            Block regularBlock = regularBlockItem.getBlock();
 
             if (useCopycat) {
                 ItemStack copycatStack = copycatComponent.blockStack();
                 if (!(copycatStack.getItem() instanceof BlockItem copycatBlockItem)) {
                     return false;
                 }
-                Block copycatBlock = copycatBlockItem.getBlock();
+                copycatBlock = copycatBlockItem.getBlock();
                 if (!(copycatBlock instanceof CopycatBlock) && !(copycatBlock instanceof ICopycatBlock)) {
                     player.displayClientMessage(
                         Component.literal("Copycat slot must contain copycat block type").withStyle(ChatFormatting.RED),
@@ -438,8 +458,6 @@ public class AndesiteWandItem extends Item {
             int placedCount = 0;
             List<BlockPos> copycatPositions = new ArrayList<>();
 
-            BlockState stateToPlace = useCopycat ? copycatState : regularState;
-
             for (BlockPos pos : positions) {
                 System.out.println("Checking position: " + pos);
                 System.out.println("Current block at position: " + level.getBlockState(pos));
@@ -449,6 +467,9 @@ public class AndesiteWandItem extends Item {
                     System.out.println("Skipping non-replaceable block at " + pos);
                     continue;
                 }
+                BlockState stateToPlace = useCopycat ?
+                    getOrientedBlockState(copycatBlock, context) :
+                    getOrientedBlockState(regularBlockItem.getBlock(), context);
                 System.out.println("Placing " + stateToPlace + " at " + pos);
                 if (level.setBlock(pos, stateToPlace, 3)) {
                     System.out.println("Successfully placed block at " + pos);
@@ -470,7 +491,11 @@ public class AndesiteWandItem extends Item {
                 if (!level.isClientSide) {
                     for (BlockPos pos : copycatPositions) {
                         System.out.println("Applying material to " + pos);
-                        applyCopycatMaterial(level, pos, regularState, regularStack);
+
+                        BlockState placedCopycatState = level.getBlockState(pos);
+                        String property = determinePropertyFromFace(placedCopycatState, face);
+
+                        applyCopycatMaterial(level, pos, regularState, regularStack, property);
                     }
                 }
             }
@@ -512,6 +537,32 @@ public class AndesiteWandItem extends Item {
         }
     }
 
+    private BlockState getOrientedBlockState(Block block, BlockPlaceContext context) {
+
+        BlockState state = block.getStateForPlacement(context);
+
+        return state != null ? state : block.defaultBlockState();
+    }
+
+    private String determinePropertyFromFace(BlockState state, Direction face) {
+        Block block = state.getBlock();
+
+        if (state.hasProperty(SlabBlock.TYPE)) {
+            SlabType slabType = state.getValue(SlabBlock.TYPE);
+            if (slabType == SlabType.TOP) {
+                return "top";
+            }
+            else if (slabType == SlabType.BOTTOM) {
+                return "bottom";
+            }
+            else {
+                return "block";
+            }
+        }
+        
+        return null;
+    }
+
     /**
      * applies the copycat material for the given block information
      * @param level the minecraft world itself
@@ -520,24 +571,33 @@ public class AndesiteWandItem extends Item {
      * @param materialItemStack the itemstack of the block, so the item can be placed inside the placed copycat block to retain the texture upon relog
      */
     // TODO this does not work with the multi-state copycats, plz fix
-    private void applyCopycatMaterial(Level level, BlockPos pos, BlockState materialState, ItemStack materialItemStack) {
+    private void applyCopycatMaterial(Level level, BlockPos pos, BlockState materialState, ItemStack materialItemStack, String specificProperty) {
         BlockEntity be = level.getBlockEntity(pos);
 
         // this should never happen? if the copycat block is null this shouldn't even be triggered but safe checking i guess
         if (be == null) return;
 
         // type checking for a copycats+ copycat
-        if (be instanceof ICopycatBlockEntity copycatBE) {
+
+        if (be instanceof IMultiStateCopycatBlockEntity multiStateCopycatBE) {
+            System.out.println(">>> Matched IMultiStateCopycatBlockEntity (multistate)");
+            String property = specificProperty != null ? specificProperty : multiStateCopycatBE.getBlock().defaultProperty();
+
+            System.out.println("Applying to multistate property: " + property);
+
+            multiStateCopycatBE.setMaterial(property, materialState);
+            multiStateCopycatBE.setConsumedItem(property, materialItemStack);
+            multiStateCopycatBE.notifyUpdate();
+            be.setChanged();
+
+            System.out.println("Applied material to multistate copycat");
+        }
+
+        else if (be instanceof ICopycatBlockEntity copycatBE) {
             copycatBE.setMaterial(materialState);
             copycatBE.setConsumedItem(materialItemStack);
             copycatBE.notifyUpdate();
             be.setChanged();
-
-            // TODO the following if branch may not be necessary, it was used to try and debug why the copycat textures were not persisting after a relog, which is now fixed since they needed to contain the item of the texture they were copying
-            if (level instanceof ServerLevel serverLevel) {
-                serverLevel.getChunkSource().blockChanged(pos);
-                serverLevel.getChunk(pos).setUnsaved(true);
-            }
         }
         // type checking for a create copycat
         else if (be instanceof CopycatBlockEntity createCopycatBE) {
@@ -545,15 +605,13 @@ public class AndesiteWandItem extends Item {
             createCopycatBE.setConsumedItem(materialItemStack);
             createCopycatBE.notifyUpdate();
             createCopycatBE.setChanged();
-
-            if (level instanceof ServerLevel serverLevel) {
-                serverLevel.getChunkSource().blockChanged(pos);
-                serverLevel.getChunk(pos).setUnsaved(true);
-            }
         }
         // this should never happen
         else {
             System.out.println("ERROR: block entity does not match a copycat type");
+        }
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.getChunkSource().blockChanged(pos);
         }
     }
 
