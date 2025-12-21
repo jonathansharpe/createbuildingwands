@@ -330,7 +330,6 @@ public class AndesiteWandItem extends Item {
      * @return will return a bool if the placement succeeded or failed. will need to utilize this more to better identify problems
      */
     private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
-        // TODO evaluate the usefulness of the `face` parameter, it's supposed to determine the direction at which the blocks are placed (like stairs, logs, etc) but it's not working at the time of writing
         // TODO implement a randomizer functionality, using the create list filter
 
         BlockPos clickedPos = context.getClickedPos();

@@ -1,4 +1,4 @@
-package com.avgusrname.createbuildingwands.networking.packet.servertoclient;
+package com.avgusrname.createbuildingwands.networking.packet;
 
 import javax.annotation.Nullable;
 

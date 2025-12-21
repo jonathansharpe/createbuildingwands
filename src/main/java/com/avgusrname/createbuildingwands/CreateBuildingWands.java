@@ -8,8 +8,8 @@ import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
-import com.avgusrname.createbuildingwands.networking.packet.clienttoserver.WandModePacket;
-import com.avgusrname.createbuildingwands.networking.packet.servertoclient.WandPreviewPacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.EventBusSubscriber;
