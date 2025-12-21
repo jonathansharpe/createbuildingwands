@@ -5,7 +5,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -17,8 +16,6 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.SlabType;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -28,7 +25,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
@@ -300,8 +296,7 @@ public class AndesiteWandItem extends Item {
             Block copycatBlock = copycatBlockItem.getBlock();
 
             if (!(copycatBlock instanceof CopycatBlock) && !(copycatBlock instanceof ICopycatBlock)) {
-                // TODO redo this logic so even attempting to place a non-copycat block into the
-                // slot doesn't work, that would lie in WandConfigScreen i believe
+                // TODO redo this logic so even attempting to place a non-copycat block into the slot doesn't work, that would lie in WandConfigScreen i believe
                 player.displayClientMessage(Component.literal("copycat slot must contain copycat block type"),
                         true);
                 return false;
@@ -544,6 +539,7 @@ public class AndesiteWandItem extends Item {
         return state != null ? state : block.defaultBlockState();
     }
 
+    // TODO this method may not be needed anymore?
     private String determinePropertyFromFace(BlockState state, Direction face) {
         Block block = state.getBlock();
 

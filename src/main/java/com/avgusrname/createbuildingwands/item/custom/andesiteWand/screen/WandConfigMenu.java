@@ -24,6 +24,7 @@ import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandI
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.references.Items;
 
+// TODO implement a selector menu to toggle individual copycat parts/layers
 public class WandConfigMenu extends AbstractContainerMenu{
 
     private final InteractionHand wandHand;

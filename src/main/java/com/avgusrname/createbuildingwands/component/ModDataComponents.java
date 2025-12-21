@@ -4,6 +4,7 @@ import java.util.function.UnaryOperator;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.networking.packet.MultiStateConfiguration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
@@ -26,6 +27,11 @@ public class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockReferenceComponent>> WAND_COPYCAT_BLOCK = register("wand_copycat_block",
         builder -> builder.persistent(BlockReferenceComponent.CODEC));
     
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<MultiStateConfiguration>> MULTI_STATE_CONFIG = register("multi_state_config",
+        builder -> builder
+            .persistent(MultiStateConfiguration.CODEC)
+            .networkSynchronized(MultiStateConfiguration.STREAM_CODEC)
+        );
 
     private static <T>DeferredHolder<DataComponentType<?>, DataComponentType<T>> register(String name, UnaryOperator<DataComponentType.Builder<T>> builderOperator) {
         return DATA_COMPONENT_TYPES.register(name, () -> builderOperator.apply(DataComponentType.builder()).build());
