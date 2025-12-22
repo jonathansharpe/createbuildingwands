@@ -163,14 +163,14 @@ public class AndesiteWandItem extends Item {
                     WandClientPreview.updateActiveState(startPosClient, currentModeClient);
 
                     // Prefer copycat block for preview if set, otherwise use regular block
-                    BlockReferenceComponent copycatComponentClient = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
-                    BlockReferenceComponent blockComponentClient = heldWand.get(ModDataComponents.WAND_BLOCK.get());
+                    Block copycatBlockClient = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+                    Block regularBlockClient = heldWand.get(ModDataComponents.WAND_BLOCK.get());
                     
                     ItemStack selection = ItemStack.EMPTY;
-                    if (copycatComponentClient != null && !copycatComponentClient.blockStack().isEmpty()) {
-                        selection = copycatComponentClient.blockStack();
-                    } else if (blockComponentClient != null && !blockComponentClient.blockStack().isEmpty()) {
-                        selection = blockComponentClient.blockStack();
+                    if (copycatBlockClient != null && !copycatBlockClient.defaultBlockState().isAir()) {
+                        selection = new ItemStack(copycatBlockClient.asItem());
+                    } else if (regularBlockClient != null && !regularBlockClient.defaultBlockState().isAir()) {
+                        selection = new ItemStack(regularBlockClient.asItem());
                     }
                     WandClientPreview.setPreviewBlock(selection);
                 }
@@ -196,12 +196,12 @@ public class AndesiteWandItem extends Item {
         BlockState targetState = Blocks.STONE.defaultBlockState();
         
         // Prefer copycat block if set, otherwise use regular block
-        BlockReferenceComponent copycatComponent = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
-        BlockReferenceComponent blockComponent = heldWand.get(ModDataComponents.WAND_BLOCK.get());
+        Block storedCopycatBlock = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+        Block storedRegularBlock = heldWand.get(ModDataComponents.WAND_BLOCK.get());
 
         // Check copycat block first
-        if (copycatComponent != null) {
-            ItemStack storedStack = copycatComponent.blockStack();
+        if (storedCopycatBlock != null) {
+            ItemStack storedStack = new ItemStack(storedCopycatBlock.asItem());
             if (!storedStack.isEmpty()) {
                 Block blockToPlace = Block.byItem(storedStack.getItem());
                 if (blockToPlace != Blocks.AIR) {
@@ -210,8 +210,8 @@ public class AndesiteWandItem extends Item {
             }
         }
         // Fall back to regular block if copycat not set
-        else if (blockComponent != null) {
-            ItemStack storedStack = blockComponent.blockStack();
+        else if (storedRegularBlock != null) {
+            ItemStack storedStack = new ItemStack(storedRegularBlock.asItem());
             if (!storedStack.isEmpty()) {
                 Block blockToPlace = Block.byItem(storedStack.getItem());
                 if (blockToPlace != Blocks.AIR) {
@@ -222,8 +222,8 @@ public class AndesiteWandItem extends Item {
 
         // Only fail if neither block is set
         if (targetState.is(Blocks.STONE) && 
-            (copycatComponent == null || copycatComponent.blockStack().isEmpty()) &&
-            (blockComponent == null || blockComponent.blockStack().isEmpty())) {
+            (storedCopycatBlock == null || storedCopycatBlock.defaultBlockState().isAir()) &&
+            (storedRegularBlock == null || storedRegularBlock.defaultBlockState().isAir())) {
             return InteractionResult.PASS;
         }
 
@@ -267,20 +267,20 @@ public class AndesiteWandItem extends Item {
         BlockPos placementPos = context.getClickedPos();
         Direction face = context.getClickedFace();
 
-        BlockReferenceComponent regularComponent = wand.get(ModDataComponents.WAND_BLOCK.get());
-        BlockReferenceComponent copycatComponent = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+        Block storedRegularBlock = wand.get(ModDataComponents.WAND_BLOCK.get());
+        Block storedCopycatBlock = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
 
         // TODO this should actually be allowed, in the case that the player wants to place empty copycat blocks. however an edge case will need to be considered if both slots contain copycat blocks, as you cannot fill one copycat block with another
-        boolean useCopycat = copycatComponent != null && regularComponent != null;
+        boolean useCopycat = storedCopycatBlock != null && storedRegularBlock != null;
 
-        if (regularComponent == null) {
+        if (storedRegularBlock == null) {
             player.displayClientMessage(
                 Component.literal("No block configured in wand").withStyle(ChatFormatting.RED), 
                 true
             );
             return false;
         }
-        ItemStack regularStack = regularComponent.blockStack();
+        ItemStack regularStack = new ItemStack(storedRegularBlock.asItem());
 
         if (!(regularStack.getItem() instanceof BlockItem regularBlockItem)) {
             return false;
@@ -288,7 +288,7 @@ public class AndesiteWandItem extends Item {
 
         BlockState regularState = regularBlockItem.getBlock().defaultBlockState();
         if (useCopycat) {
-            ItemStack copycatStack = copycatComponent.blockStack();
+            ItemStack copycatStack = new ItemStack(storedCopycatBlock.asItem());
             if (!(copycatStack.getItem() instanceof BlockItem copycatBlockItem)) {
                 return false;
             }
@@ -343,10 +343,10 @@ public class AndesiteWandItem extends Item {
             return false;
         }
 
-        BlockReferenceComponent regularComponent = wand.get(ModDataComponents.WAND_BLOCK.get());
-        BlockReferenceComponent copycatComponent = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+        Block storedRegularBlock = wand.get(ModDataComponents.WAND_BLOCK.get());
+        Block storedCopycatBlock = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
 
-        if (regularComponent == null) {
+        if (storedRegularBlock == null) {
             player.displayClientMessage(
                 Component.literal("No block configured in wand").withStyle(ChatFormatting.RED),
                 true
@@ -354,7 +354,7 @@ public class AndesiteWandItem extends Item {
             return false;
         }
 
-        boolean useCopycat = copycatComponent != null;
+        boolean useCopycat = storedCopycatBlock != null;
 
         if (player.isShiftKeyDown()) {
             if (wand.has(ModDataComponents.WAND_START_POS.get())) {
@@ -371,7 +371,7 @@ public class AndesiteWandItem extends Item {
             BlockPos startPos = wand.get(ModDataComponents.WAND_START_POS.get());
             BlockPos endPos = clickedPos.relative(face);
 
-            ItemStack regularStack = regularComponent.blockStack();
+            ItemStack regularStack = new ItemStack(storedRegularBlock.asItem());
             if (!(regularStack.getItem() instanceof BlockItem regularBlockItem)) {
                 return false;
             }
@@ -382,7 +382,7 @@ public class AndesiteWandItem extends Item {
             Block regularBlock = regularBlockItem.getBlock();
 
             if (useCopycat) {
-                ItemStack copycatStack = copycatComponent.blockStack();
+                ItemStack copycatStack = new ItemStack(storedCopycatBlock.asItem());
                 if (!(copycatStack.getItem() instanceof BlockItem copycatBlockItem)) {
                     return false;
                 }
@@ -398,7 +398,7 @@ public class AndesiteWandItem extends Item {
             }
 
             Component blockName = useCopycat ?
-                copycatComponent.blockStack().getDisplayName() :
+                new ItemStack(storedCopycatBlock).getDisplayName() :
                 regularStack.getDisplayName();
 
             List<BlockPos> positions = switch(mode) {
@@ -515,9 +515,9 @@ public class AndesiteWandItem extends Item {
             BlockPos startPos = clickedPos.relative(face);
             wand.set(ModDataComponents.WAND_START_POS.get(), startPos);
 
-            ItemStack regularStack = regularComponent.blockStack();
+            ItemStack regularStack = new ItemStack(storedRegularBlock.asItem());
             Component blockName = useCopycat ? 
-                copycatComponent.blockStack().getDisplayName() :
+                new ItemStack(storedCopycatBlock).getDisplayName() :
                 regularStack.getDisplayName();
             
             player.displayClientMessage(

@@ -47,14 +47,15 @@ public class WandConfigMenu extends AbstractContainerMenu{
     private final ItemStackHandler wandSlotHandler = new ItemStackHandler(1) {
         @Override
         protected void onContentsChanged(int slot) {
-            ItemStack storedBlock = getStackInSlot(0);
+            ItemStack storedStack = getStackInSlot(0);
 
-            if (storedBlock.isEmpty()) {
+            if (storedStack.isEmpty()) {
                 wandItem.remove(ModDataComponents.WAND_BLOCK.get());
             }
             else {
-                BlockReferenceComponent component = new BlockReferenceComponent(storedBlock);
-                wandItem.set(ModDataComponents.WAND_BLOCK.get(), component);
+                if (storedStack.getItem() instanceof BlockItem storedBlock) {
+                    wandItem.set(ModDataComponents.WAND_BLOCK.get(), storedBlock.getBlock());
+                }
             }
 
             WandConfigMenu.this.broadcastChanges();
@@ -105,14 +106,13 @@ public class WandConfigMenu extends AbstractContainerMenu{
     private final ItemStackHandler copycatSlotHandler = new ItemStackHandler(1) {
         @Override
         protected void onContentsChanged(int slot) {
-            ItemStack storedBlock = getStackInSlot(0);
+            ItemStack storedStack = getStackInSlot(0);
 
-            if (storedBlock.isEmpty()) {
+            if (storedStack.isEmpty()) {
                 wandItem.remove(ModDataComponents.WAND_COPYCAT_BLOCK.get());
             }
-            else {
-                BlockReferenceComponent component = new BlockReferenceComponent(storedBlock);
-                wandItem.set(ModDataComponents.WAND_COPYCAT_BLOCK.get(), component);
+            else if (storedStack.getItem() instanceof BlockItem copycatItem) {
+                wandItem.set(ModDataComponents.WAND_COPYCAT_BLOCK.get(), copycatItem.getBlock());
             }
 
             WandConfigMenu.this.broadcastChanges();
@@ -170,14 +170,16 @@ public class WandConfigMenu extends AbstractContainerMenu{
         this.initialModeIndex = currentMode.ordinal();
 
         // the data for the block stored in the wand is fetched here and tells the menu what it is
-        BlockReferenceComponent component = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
+        // BlockReferenceComponent component = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
+        Block regularBlock = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
 
         // the block inside the wand, set to empty by default i guess
         ItemStack storedStack = ItemStack.EMPTY;
 
         // if there IS a stored block, it'll apply that to the slot: i.e. the block with stack of 1; could also be empty 
-        if (component != null) {
-            storedStack = component.blockStack();
+        if (regularBlock != null) {
+            // storedStack = component.blockStack();
+            storedStack = new ItemStack(regularBlock.asItem());
         }
 
         // if the stack is not empty or invalid or whatever, set the stack to be the block there
@@ -189,11 +191,14 @@ public class WandConfigMenu extends AbstractContainerMenu{
         this.addSlot(new WandBlockSlot(wandSlotHandler, 0, WAND_SLOT_X, WAND_SLOT_Y));
 
         // Load copycat block slot
-        BlockReferenceComponent copycatComponent = this.wandItem.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+        // BlockReferenceComponent copycatComponent = this.wandItem.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+        Block copycatBlock = this.wandItem.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
         ItemStack copycatStoredStack = ItemStack.EMPTY;
 
-        if (copycatComponent != null) {
-            copycatStoredStack = copycatComponent.blockStack();
+        if (copycatBlock != null) {
+            // copycatStoredStack = copycatComponent.blockStack();
+            // the below line should take the ItemStack from the copcatBlock, idk how
+            copycatStoredStack = new ItemStack(copycatBlock.asItem());
         }
 
         if (!copycatStoredStack.isEmpty()) {
