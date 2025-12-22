@@ -369,7 +369,7 @@ public class AndesiteWandItem extends Item {
 
         if (wand.has(ModDataComponents.WAND_START_POS.get())) {
             BlockPos startPos = wand.get(ModDataComponents.WAND_START_POS.get());
-            BlockPos endPos = clickedPos.relative(face);
+            BlockPos endPos = clickedPos;
 
             ItemStack regularStack = new ItemStack(storedRegularBlock.asItem());
             if (!(regularStack.getItem() instanceof BlockItem regularBlockItem)) {
@@ -512,7 +512,7 @@ public class AndesiteWandItem extends Item {
         }
         // set start position
         else {
-            BlockPos startPos = clickedPos.relative(face);
+            BlockPos startPos = originalClickedPos;
             wand.set(ModDataComponents.WAND_START_POS.get(), startPos);
 
             ItemStack regularStack = new ItemStack(storedRegularBlock.asItem());
@@ -521,7 +521,7 @@ public class AndesiteWandItem extends Item {
                 regularStack.getDisplayName();
             
             player.displayClientMessage(
-                Component.literal("Start position set. Click another location to place a " + mode + " of ")
+                Component.literal("Start position set to " + startPos + ". Click another location to place a " + mode + " of ")
                     .append(blockName.copy().withStyle(ChatFormatting.YELLOW))
                     .append(Component.literal("."))
                     .withStyle(ChatFormatting.AQUA),
@@ -529,6 +529,10 @@ public class AndesiteWandItem extends Item {
             );
             return true;
         }
+    }
+
+    private BlockPos getAdjustedLocation(Level level, BlockPos pos, Direction face) {
+        return level.getBlockState(pos).canBeReplaced() ? pos : pos.relative(face);
     }
 
     private BlockState getOrientedBlockState(Block block, BlockPlaceContext context) {
