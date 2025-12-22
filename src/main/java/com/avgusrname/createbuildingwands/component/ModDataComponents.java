@@ -8,6 +8,8 @@ import com.avgusrname.createbuildingwands.networking.packet.MultiStateConfigurat
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.Block;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -21,17 +23,9 @@ public class ModDataComponents {
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockPos>> WAND_START_POS = register("wand_start_pos", builder -> builder.persistent(BlockPos.CODEC));
 
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockReferenceComponent>> WAND_BLOCK = register("wand_block",
-        builder -> builder.persistent(BlockReferenceComponent.CODEC));
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_BLOCK = register("wand_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
 
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockReferenceComponent>> WAND_COPYCAT_BLOCK = register("wand_copycat_block",
-        builder -> builder.persistent(BlockReferenceComponent.CODEC));
-    
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<MultiStateConfiguration>> MULTI_STATE_CONFIG = register("multi_state_config",
-        builder -> builder
-            .persistent(MultiStateConfiguration.CODEC)
-            .networkSynchronized(MultiStateConfiguration.STREAM_CODEC)
-        );
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_COPYCAT_BLOCK = register("wand_copycat_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
 
     private static <T>DeferredHolder<DataComponentType<?>, DataComponentType<T>> register(String name, UnaryOperator<DataComponentType.Builder<T>> builderOperator) {
         return DATA_COMPONENT_TYPES.register(name, () -> builderOperator.apply(DataComponentType.builder()).build());
