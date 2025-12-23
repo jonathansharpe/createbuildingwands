@@ -6,26 +6,22 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
 import net.neoforged.neoforge.items.wrapper.InvWrapper;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
-import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.references.Items;
 
 // TODO implement a selector menu to toggle individual copycat parts/layers
-public class WandConfigMenu extends AbstractContainerMenu{
+public class WandConfigMenu extends AbstractContainerMenu {
 
     private final InteractionHand wandHand;
     private final ItemStack wandItem;
