@@ -3,11 +3,15 @@ package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.networking.packet.OpenByteConfigPacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
+import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
+import com.avgusrname.createbuildingwands.networking.ModPackets;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
@@ -16,6 +20,7 @@ import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.vault.VaultBlockEntity.Server;
@@ -33,6 +38,7 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
     private static final int MODE_WIDGET_WIDTH = 80;
     
     private WandModeScrollWidget modeWidget;
+    private Button byteConfigButton;
 
     private static final List<Component> WAND_MODE_NAMES = Arrays.stream(WandMode.values())
         .map(WandMode::getDisplayName)
@@ -64,6 +70,32 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
             this::onModeScroll
         );
         this.addRenderableWidget(modeWidget);
+        
+        int buttonX = this.leftPos + 115;
+        int buttonY = this.topPos + 40;
+
+        this.byteConfigButton = this.addRenderableWidget(Button.builder(Component.literal("Config Byte"), button -> {
+            PacketDistributor.sendToServer(new OpenByteConfigPacket());
+        })
+        .bounds(buttonX, buttonY, 55, 20)
+        .build());
+
+        this.byteConfigButton.visible = false;
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+
+        ItemStack copycatStack = this.menu.getSlot(1).getItem();
+
+        boolean isByteBlock = !copycatStack.isEmpty()
+            && copycatStack.getItem() instanceof BlockItem bi
+            && bi.getBlock() instanceof CopycatByteBlock;
+        
+        if (this.byteConfigButton != null) {
+            this.byteConfigButton.visible = isByteBlock;
+        }
     }
 
     @Override

@@ -1,16 +1,13 @@
 package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
-import net.minecraft.ChatFormatting;
+import java.util.List;
+
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.ItemStackHandler;
-
-import java.util.List;
-
-import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
 
 public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 
@@ -44,7 +41,7 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
             if (row >= 2) yOffset += 10;
 
             this.addRenderableWidget(new ByteToggleButton(
-                x + xOffset, y + yOffset, 60, 20, prop
+                this.menu, x + xOffset, y + yOffset, 60, 20, prop
             ));
         }
     }
@@ -81,23 +78,56 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int x = (width - imageWidth) / 2;
+        int y = (height - imageHeight) / 2;
+
+        for (int i = 0; i < PROPERTIES.size(); i++) {
+            String prop = PROPERTIES.get(i);
+            int col = i % 2;
+            int row = i / 2;
+            int slotX = x + 15 + (col * 100) + 65;
+            int slotY = y + 30 + (row * 30);
+            if (row >= 2) slotY += 15;
+
+            if (mouseX >= slotX && mouseX < slotX + 20 && mouseY >= slotY && mouseY < slotY + 20) {
+                ItemStack held = getMenu().getCarried();
+
+                menu.setMaterialForPart(prop, button == 1 ? ItemStack.EMPTY : held.copyWithCount(1));
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         int x = (width - imageWidth) / 2;
         int y = (height - imageHeight) / 2;
 
         guiGraphics.fill(x, y, x + imageWidth, y + imageHeight, 0xFF353535);
-
-        guiGraphics.fill(x, y, x + imageWidth, y + 1, 0xFF5A5A5A);
-        guiGraphics.fill(x, y + imageHeight - 1, x + imageWidth, y + imageHeight, 0xFF5A5A5A);
-
-        guiGraphics.drawString(font, "Top Layer", x + 20, y + 18, 0x00000000);
-        guiGraphics.drawString(font, "Bottom Layer", x + 20, y + 18, 0x00000000);
+        guiGraphics.drawString(font, "Top Layer", x + 15, y + 15, 0xFFAAAAAA);
+        guiGraphics.drawString(font, "Bottom Layer", x + 15, y + 100, 0xFFAAAAAA);
     }
 
-    @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        guiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 0x00000000);
+    private String formatName(String raw) {
+        return raw.replace("_", " ").toUpperCase();
     }
 
-    private class ByteToggleButton
+    private class ByteToggleButton extends Button {
+        private final String property;
+        private final ByteConfigMenu menu;
+
+        public ByteToggleButton(ByteConfigMenu menu, int x, int y, int width, int height, String property) {
+            super(x, y, width, height, Component.empty(), b -> menu.toggleByte(property), DEFAULT_NARRATION);
+            this.menu = menu;
+            this.property = property;
+        }
+
+        @Override
+        public Component getMessage() {
+            boolean active = menu.getByte(property);
+            return Component.literal((active ? "▣  " : "□ ") + formatName(property).split(" ")[1]);
+        }
+    }
 }

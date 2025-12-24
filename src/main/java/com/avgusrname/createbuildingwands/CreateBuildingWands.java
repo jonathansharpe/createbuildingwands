@@ -6,8 +6,10 @@ import org.slf4j.LoggerFactory;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigScreen;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
+import com.avgusrname.createbuildingwands.networking.packet.OpenByteConfigPacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
 
@@ -57,10 +59,14 @@ public class CreateBuildingWands {
 
         @SubscribeEvent
         public static void registerMenuScreens(RegisterMenuScreensEvent event) {
-            LOGGER.info("Registering WandConfigScreen...");
+            LOGGER.info("Registering Screens...");
             event.register(
                 ModMenuTypes.WAND_CONFIG_MENU.get(), 
                 WandConfigScreen::new
+            );
+            event.register(
+                ModMenuTypes.BYTE_CONFIG.get(),
+                ByteConfigScreen::new
             );
         }
 
@@ -81,6 +87,12 @@ public class CreateBuildingWands {
                 (payload, context) -> {
                     context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context));
                 }
+            );
+
+            registrar.playBidirectional(
+                OpenByteConfigPacket.TYPE,
+                OpenByteConfigPacket.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> OpenByteConfigPacket.handleOnServer(payload, context))
             );
 
             LOGGER.info("Networking Payloads Registered directly in main mod class.");
