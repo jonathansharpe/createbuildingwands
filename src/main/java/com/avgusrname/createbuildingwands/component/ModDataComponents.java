@@ -4,7 +4,6 @@ import java.util.function.UnaryOperator;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
-import com.avgusrname.createbuildingwands.networking.packet.OpenByteConfigPacket;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
@@ -26,6 +25,8 @@ public class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_BLOCK = register("wand_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_COPYCAT_BLOCK = register("wand_copycat_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ByteBlockConfiguration>> BYTE_BLOCK_CONFIG = register("byte_block_config", builder -> builder.persistent(ByteBlockConfiguration.CODEC).networkSynchronized(ByteBlockConfiguration.STREAM_CODEC));
 
     private static <T>DeferredHolder<DataComponentType<?>, DataComponentType<T>> register(String name, UnaryOperator<DataComponentType.Builder<T>> builderOperator) {
         return DATA_COMPONENT_TYPES.register(name, () -> builderOperator.apply(DataComponentType.builder()).build());

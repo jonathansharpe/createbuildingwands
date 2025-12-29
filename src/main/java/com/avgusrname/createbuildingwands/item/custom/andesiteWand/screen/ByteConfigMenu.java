@@ -3,95 +3,229 @@ package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.minecraft.world.item.component.CustomData;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import com.avgusrname.createbuildingwands.component.ByteBlockConfiguration;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
 
 public class ByteConfigMenu extends AbstractContainerMenu {
 
     private final ItemStack wandStack;
     private final InteractionHand hand;
-    private final HolderLookup.Provider registries;
+    private final List<String> byteProperties;
+    private final Map<String, ItemStackHandler> byteSlotHandlers = new HashMap<>();
+
+    public static final int INVENTORY_START_X = 29;
+    public static final int INVENTORY_START_Y = 120;
+    public static final int HOTBAR_START_Y = 178;
 
     public ByteConfigMenu(int id, Inventory inv, InteractionHand hand) {
         super(ModMenuTypes.BYTE_CONFIG.get(), id);
         this.hand = hand;
         this.wandStack = inv.player.getItemInHand(hand);
-        this.registries = inv.player.registryAccess();
-    }
 
-    public boolean getByte(String propertyName) {
-        BlockItemStateProperties properties = wandStack.get(DataComponents.BLOCK_STATE);
-        if (properties == null) return false;
+        this.byteProperties = new ArrayList<>(ByteBlockConfiguration.getAllBytePropertyNames());
+        System.out.println("ByteConfigMenu: Loaded " + byteProperties.size() + " byte properties");
 
-        String value = properties.properties().get(propertyName);
-        return "true".equals(value);
-    }
+        ByteBlockConfiguration existingConfig = wandStack.get(ModDataComponents.BYTE_BLOCK_CONFIG.get());
+        if (existingConfig != null) {
+            System.out.println("ByteConfigMenu: Found existing config with " + existingConfig.getEnabledBytes().size() + " enabled bytes");
+        }
 
-    public void toggleByte(String propertyName) {
-        BlockItemStateProperties current = wandStack.getOrDefault(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY);
+        for (String property : byteProperties) {
+            ItemStackHandler handler = createByteSlotHandler(property, existingConfig);
+            byteSlotHandlers.put(property, handler);
+        }
 
-        Map<String, String> newMap = new HashMap<>(current.properties());
-
-        boolean currentVal = "true".equals(newMap.get(propertyName));
-        newMap.put(propertyName, String.valueOf(!currentVal));
-
-        wandStack.set(DataComponents.BLOCK_STATE, new BlockItemStateProperties(newMap));
-    }
-
-    public ItemStack getMaterialForPart(String propertyName) {
-        CustomData customData = wandStack.get(DataComponents.CUSTOM_DATA);
-        if (customData == null) return ItemStack.EMPTY;
-
-        CompoundTag tag = customData.copyTag();
-        if (tag.contains("PartMaterials")) {
-            CompoundTag materials = tag.getCompound("PartMaterials");
-            if (materials.contains(propertyName)) {
-                return ItemStack.parseOptional(registries, materials.getCompound(propertyName));
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                this.addSlot(new Slot(inv, col + row * 9 + 9,
+                INVENTORY_START_X + col * 18,
+                INVENTORY_START_Y + row * 18));
             }
         }
-        return ItemStack.EMPTY;
+
+        for (int col = 0; col < 9; col++) {
+            this.addSlot(new Slot(inv, col,
+            INVENTORY_START_X + col * 18,
+            HOTBAR_START_Y));
+        }
     }
 
-    public void setMaterialForPart(String propertyName, ItemStack stack) {
-        CustomData customData = wandStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-        CompoundTag tag = customData.copyTag();
+    private ItemStackHandler createByteSlotHandler(String property, ByteBlockConfiguration config) {
+        return new ItemStackHandler(1) {
+            @Override
+            protected void onContentsChanged(int slot) {
+                System.out.println("Slot changed for byte " + property);
+                updateWandConfiguration();
+                ByteConfigMenu.this.broadcastChanges();
+            }
 
-        CompoundTag materials;
-        if (tag.contains("PartMaterials")) {
-            materials = tag.getCompound("PartMaterials");
+            @Override
+            public boolean isItemValid(int slot, ItemStack stack) {
+                return stack.isEmpty() || stack.getItem() instanceof BlockItem;
+            }
+
+            @Override
+            public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+                if (!isItemValid(slot, stack)) {
+                    return stack;
+                }
+
+                if (!simulate) {
+                    setStackInSlot(0, stack.copyWithCount(1));
+                    onContentsChanged(slot);
+                }
+                return stack.getCount() > 1 ? stack.copyWithCount(stack.getCount() - 1) : ItemStack.EMPTY;
+            }
+            {
+                if (config != null && config.isByteEnabled(property)) {
+                    ItemStack existingTexture = config.getByteTexture(property);
+                    if (!existingTexture.isEmpty()) {
+                        this.setStackInSlot(0, existingTexture.copy());
+                        System.out.println("Loaded texture for " + property + ": " + existingTexture.getDisplayName().getString());
+                    }
+                }
+            }
+        };
+    }
+
+    public boolean getByte(String property) {
+        ByteBlockConfiguration config = wandStack.getOrDefault(ModDataComponents.BYTE_BLOCK_CONFIG.get(), new ByteBlockConfiguration());
+        return config.isByteEnabled(property);
+    }
+
+    public void toggleByte(String property) {
+        ByteBlockConfiguration config = wandStack.getOrDefault(ModDataComponents.BYTE_BLOCK_CONFIG.get(), new ByteBlockConfiguration());
+        boolean newState = !config.isByteEnabled(property);
+
+        ByteBlockConfiguration updated = config.withByteEnabled(property, newState);
+        wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), updated);
+
+        if (!newState) {
+            byteSlotHandlers.get(property).setStackInSlot(0, ItemStack.EMPTY);
+        }
+
+        this.broadcastChanges();
+    }
+
+    public ItemStack getMaterialForPart(String property) {
+        ItemStackHandler handler = byteSlotHandlers.get(property);
+        return handler != null ? handler.getStackInSlot(0) : ItemStack.EMPTY;
+    }
+
+    public void setMaterialForPart(String property, ItemStack stack) {
+        ItemStackHandler handler = byteSlotHandlers.get(property);
+        if (handler != null) {
+            handler.setStackInSlot(0, stack);
+
+            ByteBlockConfiguration config = wandStack.getOrDefault(ModDataComponents.BYTE_BLOCK_CONFIG.get(), new ByteBlockConfiguration());
+            if (!stack.isEmpty() && !config.isByteEnabled(property)) {
+                wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), config.withByteEnabled(property, true));
+            }
+
+            updateWandConfiguration();
+        }
+    }
+
+    public void updateWandConfiguration() {
+        ByteBlockConfiguration newConfig = new ByteBlockConfiguration();
+
+        System.out.println("Updating wand byte configuration...");
+
+        for (String property : byteProperties) {
+            ItemStackHandler handler = byteSlotHandlers.get(property);
+            if (handler == null) continue;
+
+            ItemStack textureStack = handler.getStackInSlot(0);
+
+            if (!textureStack.isEmpty()) {
+                newConfig = newConfig.withByteTexture(property, textureStack.copy());
+                System.out.println("   Configured byte: " + property + " = " + textureStack.getDisplayName().getString());
+            }
+        }
+
+        if (newConfig.isEmpty()) {
+            wandStack.remove(ModDataComponents.BYTE_BLOCK_CONFIG.get());
+            System.out.println("Config is empty, removed from wand");
         }
         else {
-            materials = new CompoundTag();
+            wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), newConfig);
+            System.out.println("Saved config with " + newConfig.getEnabledBytes().size() + " enabled bytes");
         }
+    }
 
-        if (stack.isEmpty()) {
-            materials.remove(propertyName);
-        }
-        else {
-            materials.put(propertyName, stack.save(registries));
-        }
+    public ItemStack getWandStack() {
+        return wandStack;
+    }
 
-        tag.put("PartMaterials", materials);
-        wandStack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+    public List<String> getByteProperties() {
+        return byteProperties;
+    }
+
+    public ItemStackHandler getByteSlotHandler(String property) {
+        return byteSlotHandlers.get(property);
     }
 
     // will likely leave this un implemented because idk how you can shift-click into a specific slot without putting it in all of them
     @Override
-    public ItemStack quickMoveStack(Player p, int i) {
+    public ItemStack quickMoveStack(Player p, int index) {
+        ItemStack itemStack = ItemStack.EMPTY;
+        Slot slot = this.slots.get(index);
+        if (slot != null && slot.hasItem()) {
+            ItemStack slotStack = slot.getItem();
+            itemStack = slotStack.copy();
+
+            if (!(slotStack.getItem() instanceof BlockItem)) {
+                return ItemStack.EMPTY;
+            }
+            
+            for (String property : byteProperties) {
+                ItemStackHandler handler = byteSlotHandlers.get(property);
+                if (handler != null && handler.getStackInSlot(0).isEmpty()) {
+                    handler.setStackInSlot(0, slotStack.copyWithCount(1));
+                    System.out.println("Shift-clicked into byte slot: " + property);
+                    return itemStack;
+                }
+            }
+        }
         return ItemStack.EMPTY;
     }
 
     @Override
     public boolean stillValid(Player p) {
         return p.getItemInHand(hand).equals(wandStack);
+    }
+
+    @Override
+    public void removed(Player p) {
+        super.removed(p);
+        updateWandConfiguration();
+        ItemStack actualWand = p.getItemInHand(this.hand);
+        ByteBlockConfiguration finalConfig = wandStack.get(ModDataComponents.BYTE_BLOCK_CONFIG.get());
+
+        if (finalConfig != null) {
+            actualWand.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), finalConfig);
+            System.out.println("ByteConfigMenu closed, final config saved");
+        }
+        else {
+            System.out.println("final config was not saved, there's a problem");
+        }
     }
     
 }

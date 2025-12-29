@@ -21,7 +21,9 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
     public ByteConfigScreen(ByteConfigMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         this.imageWidth = 220;
-        this.imageHeight = 180;
+        this.imageHeight = 206;
+        this.inventoryLabelY = Integer.MAX_VALUE;
+        this.titleLabelY = 5;
     }
 
     @Override
@@ -35,13 +37,13 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
             int col = i % 2;
             int row = i / 2;
 
-            int xOffset = 20 + (col * 70);
-            int yOffset = 30 + (row * 25);
+            int xOffset = 15 + (col * 100);
+            int yOffset = 20 + (row * 24);
 
-            if (row >= 2) yOffset += 10;
+            if (row >= 2) yOffset += 8;
 
             this.addRenderableWidget(new ByteToggleButton(
-                this.menu, x + xOffset, y + yOffset, 60, 20, prop
+                this.menu, x + xOffset, y + yOffset, 85, 20, prop
             ));
         }
     }
@@ -57,20 +59,27 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
             String prop = PROPERTIES.get(i);
             int col = i % 2;
             int row = i / 2;
-            int slotX = x + 15 + (col * 100) + 65;
-            int slotY = y + 30 + (row * 30);
-            if (row >= 2) slotY += 15;
+            int slotX = x + 15 + (col * 100) + 88;
+            int slotY = y + 20 + (row * 24);
+            if (row >= 2) slotY += 8;
 
-            guiGraphics.fill(slotX, slotY, slotX + 20, slotY + 20, 0xFF202020);
-            guiGraphics.renderOutline(slotX, slotY, 20, 20, 0xFF8B8B8B);
+            guiGraphics.fill(slotX, slotY, slotX + 18, slotY + 18, 0xFF202020);
+
+            int borderColor = 0xFF5A5A5A;
+
+            guiGraphics.fill(slotX, slotY, slotX + 18, slotY + 1, borderColor);
+            guiGraphics.fill(slotX, slotY, slotX + 1, slotY + 18, borderColor);
+
+            guiGraphics.fill(slotX, slotY + 17, slotX + 18, slotY + 18, borderColor);
+            guiGraphics.fill(slotX + 17, slotY, slotX + 18, slotY + 18, borderColor);
 
             ItemStack stack = menu.getMaterialForPart(prop);
             if (!stack.isEmpty()) {
                 guiGraphics.renderFakeItem(stack, slotX + 2, slotY + 2);
             }
 
-            if (mouseX >= slotX && mouseX < slotX + 20 && mouseY >= slotY && mouseY < slotY + 20) {
-                guiGraphics.renderTooltip(font, Component.literal("Set material for: " + formatName(prop)), mouseX, mouseY);
+            if (mouseX >= slotX && mouseX < slotX + 18 && mouseY >= slotY && mouseY < slotY + 18) {
+                guiGraphics.renderTooltip(font, Component.literal("Material: " + (stack.isEmpty() ? "None" : stack.getHoverName().getString())), mouseX, mouseY);
             }
         }
 
@@ -86,9 +95,9 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
             String prop = PROPERTIES.get(i);
             int col = i % 2;
             int row = i / 2;
-            int slotX = x + 15 + (col * 100) + 65;
-            int slotY = y + 30 + (row * 30);
-            if (row >= 2) slotY += 15;
+            int slotX = x + 15 + (col * 100) + 88;
+            int slotY = y + 20 + (row * 24);
+            if (row >= 2) slotY += 8;
 
             if (mouseX >= slotX && mouseX < slotX + 20 && mouseY >= slotY && mouseY < slotY + 20) {
                 ItemStack held = getMenu().getCarried();
@@ -106,8 +115,37 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
         int y = (height - imageHeight) / 2;
 
         guiGraphics.fill(x, y, x + imageWidth, y + imageHeight, 0xFF353535);
-        guiGraphics.drawString(font, "Top Layer", x + 15, y + 15, 0xFFAAAAAA);
-        guiGraphics.drawString(font, "Bottom Layer", x + 15, y + 100, 0xFFAAAAAA);
+
+        guiGraphics.fill(x, y, x + imageWidth, y + 2, 0xFF5A5A5A);
+        guiGraphics.fill(x, y + imageHeight - 2, x + imageWidth, y + imageHeight, 0xFF5A5A5A);
+        guiGraphics.fill(x, y, x + 2, y + imageHeight, 0xFF5A5A5A);
+        guiGraphics.fill(x + imageWidth - 2, y, x + imageWidth, y + imageHeight, 0xFF5A5A5A);
+
+        drawInventorySlots(guiGraphics, x + ByteConfigMenu.INVENTORY_START_X, y + ByteConfigMenu.INVENTORY_START_Y);
+    }
+
+    private void drawInventorySlots(GuiGraphics guiGraphics, int startX, int startY){
+        int slotSize = 18;
+        int slotColor = 0xFF202020;
+        int borderColor = 0xFF5A5A5A;
+
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                int sx = startX + col * slotSize;
+                int sy = startY + row * slotSize;
+                drawSlot(guiGraphics, sx, sy, slotColor, borderColor);
+            }
+        }
+    }
+
+    private void drawSlot(GuiGraphics g, int x, int y, int color, int border) {
+        g.fill(x, y, x + 18, y + 18, border);
+        g.fill(x + 1, y + 1, x + 17, y + 17, color);
+    }
+
+    @Override
+    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        guiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 0x404040, false);
     }
 
     private String formatName(String raw) {
@@ -127,7 +165,9 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
         @Override
         public Component getMessage() {
             boolean active = menu.getByte(property);
-            return Component.literal((active ? "▣  " : "□ ") + formatName(property).split(" ")[1]);
+            String[] parts = formatName(property).split(" ");
+            String label = parts.length > 1 ? parts[1] : parts[0];
+            return Component.literal((active ? "▣ " : "□ ") + label);
         }
     }
 }
