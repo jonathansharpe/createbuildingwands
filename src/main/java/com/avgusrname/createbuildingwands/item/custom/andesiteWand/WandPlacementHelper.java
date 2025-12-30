@@ -12,6 +12,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -65,20 +66,15 @@ public class WandPlacementHelper {
         CompoundTag materialData = new CompoundTag();
 
         for (String byteName : config.getEnabledBytes()) {
-            ItemStack textureStack = config.getByteTexture(byteName);
+            Block textureBlock = config.getByteTextureBlock(byteName);
 
-            if (textureStack.isEmpty()) {
+            if (textureBlock == Blocks.AIR) {
                 System.out.println("   WARNING: Byte " + byteName + " has no texture!");
                 continue;
             }
 
-            if (!(textureStack.getItem() instanceof BlockItem blockItem)) {
-                System.out.println("   WARNING: Texture for " + byteName + " is not a block!");
-                continue;
-            }
-
-            String materialId = BuiltInRegistries.BLOCK.getKey(blockItem.getBlock()).toString();
-            String itemId = BuiltInRegistries.ITEM.getKey(textureStack.getItem()).toString();
+            String materialId = BuiltInRegistries.BLOCK.getKey(textureBlock).toString();
+            String itemId = BuiltInRegistries.ITEM.getKey(new ItemStack(textureBlock).getItem()).toString();
 
             System.out.println("   Setting texture for " + byteName + ": " + materialId);
 

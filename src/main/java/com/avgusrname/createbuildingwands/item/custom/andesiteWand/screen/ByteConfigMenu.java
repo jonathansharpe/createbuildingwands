@@ -10,9 +10,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.ArrayList;
@@ -22,6 +25,7 @@ import java.util.Map;
 
 import com.avgusrname.createbuildingwands.component.ByteBlockConfiguration;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.simibubi.create.AllBlocks;
 
 public class ByteConfigMenu extends AbstractContainerMenu {
 
@@ -95,10 +99,10 @@ public class ByteConfigMenu extends AbstractContainerMenu {
             }
             {
                 if (config != null && config.isByteEnabled(property)) {
-                    ItemStack existingTexture = config.getByteTexture(property);
-                    if (!existingTexture.isEmpty()) {
-                        this.setStackInSlot(0, existingTexture.copy());
-                        System.out.println("Loaded texture for " + property + ": " + existingTexture.getDisplayName().getString());
+                    Block existingBlock = config.getByteTextureBlock(property);
+                    if (!(existingBlock == Blocks.AIR)) {
+                        this.setStackInSlot(0, new ItemStack(existingBlock));
+                        System.out.println("Loaded texture for " + property + ": " + existingBlock.getName());
                     }
                 }
             }
@@ -112,16 +116,29 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
     public void toggleByte(String property) {
         ByteBlockConfiguration config = wandStack.getOrDefault(ModDataComponents.BYTE_BLOCK_CONFIG.get(), new ByteBlockConfiguration());
-        boolean newState = !config.isByteEnabled(property);
+        boolean isCurrentlyEnabled = config.isByteEnabled(property);
+        boolean newState = !isCurrentlyEnabled;
+        System.out.println("Toggling byte '" + property + "' from " + isCurrentlyEnabled + " to " + newState);
 
-        ByteBlockConfiguration updated = config.withByteEnabled(property, newState);
-        wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), updated);
+        ByteBlockConfiguration updated;
 
-        if (!newState) {
-            byteSlotHandlers.get(property).setStackInSlot(0, ItemStack.EMPTY);
+        if (newState) {
+            Block currentBlockTexture = config.getByteTextureBlock(property);
+            System.out.println("the value of currentBlockTexture is: " + currentBlockTexture);
+            updated = config.withByteEnabled(property, true);
+            System.out.println("the value of updated is now: " + updated);
+        }
+        else {
+            updated = config.withByteEnabled(property, false);
+
+            if (byteSlotHandlers.containsKey(property)) {
+                byteSlotHandlers.get(property).setStackInSlot(0, ItemStack.EMPTY);
+            }
         }
 
+        wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), updated);
         this.broadcastChanges();
+        System.out.println("wand BYTE_BLOCK_CONFIG is now: " + updated);
     }
 
     public ItemStack getMaterialForPart(String property) {
@@ -155,7 +172,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
             ItemStack textureStack = handler.getStackInSlot(0);
 
             if (!textureStack.isEmpty()) {
-                newConfig = newConfig.withByteTexture(property, textureStack.copy());
+                newConfig = newConfig.withByteTextureBlock(property, Block.byItem(textureStack.getItem()));
                 System.out.println("   Configured byte: " + property + " = " + textureStack.getDisplayName().getString());
             }
         }
