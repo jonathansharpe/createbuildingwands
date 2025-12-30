@@ -115,30 +115,32 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     public void toggleByte(String property) {
+        /*
+        logic flow:
+        - get wand item
+        - check to see if given byte is enabled
+            - if it is, remove it from the map because it is now disabled
+            - if it's not, enable it; give it the copycat base texture as a default
+                - if there's a block in the slot, apply that block as the texture
+        - update the wand configuration
+         */
+
         ByteBlockConfiguration config = wandStack.getOrDefault(ModDataComponents.BYTE_BLOCK_CONFIG.get(), new ByteBlockConfiguration());
-        boolean isCurrentlyEnabled = config.isByteEnabled(property);
-        boolean newState = !isCurrentlyEnabled;
-        System.out.println("Toggling byte '" + property + "' from " + isCurrentlyEnabled + " to " + newState);
 
-        ByteBlockConfiguration updated;
+        ItemStackHandler handler = byteSlotHandlers.get(property);
 
-        if (newState) {
-            Block currentBlockTexture = config.getByteTextureBlock(property);
-            System.out.println("the value of currentBlockTexture is: " + currentBlockTexture);
-            updated = config.withByteEnabled(property, true);
-            System.out.println("the value of updated is now: " + updated);
+        Map<String, Block> textureMap = new HashMap<>(config.byteTextures());
+
+        if (textureMap.containsKey(property)) {
+            textureMap.remove(property);
         }
         else {
-            updated = config.withByteEnabled(property, false);
-
-            if (byteSlotHandlers.containsKey(property)) {
-                byteSlotHandlers.get(property).setStackInSlot(0, ItemStack.EMPTY);
+            Block textureToApply = wandStack.get(ModDataComponents.WAND_BLOCK);
+            if (!handler.getStackInSlot(0).isEmpty() && handler.getStackInSlot(0).getItem() instanceof BlockItem blockItem) {
+                textureToApply = blockItem.getBlock();
             }
+            textureMap.put(property, textureToApply);
         }
-
-        wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), updated);
-        this.broadcastChanges();
-        System.out.println("wand BYTE_BLOCK_CONFIG is now: " + updated);
     }
 
     public ItemStack getMaterialForPart(String property) {
@@ -161,9 +163,12 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     public void updateWandConfiguration() {
-        ByteBlockConfiguration newConfig = new ByteBlockConfiguration();
+        ByteBlockConfiguration currentConfig = wandStack.getOrDefault(
+            ModDataComponents.BYTE_BLOCK_CONFIG.get(),
+            new ByteBlockConfiguration()
+        );
 
-        System.out.println("Updating wand byte configuration...");
+        System.out.println("Syncing wand config from Menu slots...");
 
         for (String property : byteProperties) {
             ItemStackHandler handler = byteSlotHandlers.get(property);
@@ -172,18 +177,22 @@ public class ByteConfigMenu extends AbstractContainerMenu {
             ItemStack textureStack = handler.getStackInSlot(0);
 
             if (!textureStack.isEmpty()) {
-                newConfig = newConfig.withByteTextureBlock(property, Block.byItem(textureStack.getItem()));
-                System.out.println("   Configured byte: " + property + " = " + textureStack.getDisplayName().getString());
+                Block block = Block.byItem(textureStack.getItem());
+                currentConfig = currentConfig.withByteTextureBlock(property, block);
+                System.out.println("  Byte [" + property + "] -> " + block.getName().getString());
+            }
+            else {
+                currentConfig = currentConfig.withByteTextureBlock(property, null);
             }
         }
 
-        if (newConfig.isEmpty()) {
+        if (currentConfig.isEmpty()) {
             wandStack.remove(ModDataComponents.BYTE_BLOCK_CONFIG.get());
             System.out.println("Config is empty, removed from wand");
         }
         else {
-            wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), newConfig);
-            System.out.println("Saved config with " + newConfig.getEnabledBytes().size() + " enabled bytes");
+            wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), currentConfig);
+            System.out.println("Saved config with " + currentConfig.getEnabledBytes().size() + " enabled bytes");
         }
     }
 

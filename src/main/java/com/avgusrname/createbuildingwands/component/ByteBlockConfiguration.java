@@ -42,7 +42,7 @@ public record ByteBlockConfiguration(Map<String, Block> byteTextures) {
         }
 
         public boolean isByteEnabled(String byteName) {
-            return byteTextures.containsKey(byteName) && !(byteTextures.get(byteName) == Blocks.AIR);
+            return byteTextures.containsKey(byteName);
         }
 
         public Block getByteTextureBlock(String byteName) {
