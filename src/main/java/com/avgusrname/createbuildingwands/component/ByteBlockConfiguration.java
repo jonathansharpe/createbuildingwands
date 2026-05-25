@@ -1,7 +1,6 @@
 package com.avgusrname.createbuildingwands.component;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -10,15 +9,11 @@ import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
 import com.mojang.serialization.Codec;
 import com.simibubi.create.AllBlocks;
 
-import io.netty.buffer.ByteBuf;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
@@ -70,7 +65,7 @@ public record ByteBlockConfiguration(Map<String, Block> byteTextures) {
 
         public ByteBlockConfiguration withByteTextureBlock(String byteName, Block textureBlock) {
             Map<String, Block> newMap = new HashMap<>(this.byteTextures);
-            Block blockToStore = (textureBlock == null) ? Blocks.AIR : textureBlock;
+            Block blockToStore = (textureBlock == null) ? AllBlocks.COPYCAT_BASE.get() : textureBlock;
             System.out.println("changing byte " + byteName + " with texture of " + textureBlock);
 
             newMap.put(byteName, blockToStore);

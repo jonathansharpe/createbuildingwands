@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 import com.avgusrname.createbuildingwands.component.ByteBlockConfiguration;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
@@ -31,6 +33,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
     private final ItemStack wandStack;
     private final InteractionHand hand;
+    private final Player player;
     private final List<String> byteProperties;
     private final Map<String, ItemStackHandler> byteSlotHandlers = new HashMap<>();
 
@@ -41,17 +44,28 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     public ByteConfigMenu(int id, Inventory inv, InteractionHand hand) {
         super(ModMenuTypes.BYTE_CONFIG.get(), id);
         this.hand = hand;
+        this.player = inv.player;
         this.wandStack = inv.player.getItemInHand(hand);
 
-        this.byteProperties = new ArrayList<>(ByteBlockConfiguration.getAllBytePropertyNames());
-        System.out.println("ByteConfigMenu: Loaded " + byteProperties.size() + " byte properties");
-
+        this.byteProperties = new ArrayList<>();
         ByteBlockConfiguration existingConfig = wandStack.get(ModDataComponents.BYTE_BLOCK_CONFIG.get());
+        System.out.println("ByteConfigMenu: Loaded " + byteProperties.size() + " byte properties");
+        Set<String> allPossible = ByteBlockConfiguration.getAllBytePropertyNames();
+
         if (existingConfig != null) {
-            System.out.println("ByteConfigMenu: Found existing config with " + existingConfig.getEnabledBytes().size() + " enabled bytes");
+            Set<String> enabledOnWand = existingConfig.getEnabledBytes();
+            for (String property : allPossible) {
+                if (enabledOnWand.contains(property)) {
+                    this.byteProperties.add(property);
+                }
+            }
+            System.out.println("ByteConfigMenu: Loaded " + byteProperties.size() + " active properties from wand");
+        }
+        else {
+            System.out.println("ByteConfigMenu: No existing config, starting with empty property list");
         }
 
-        for (String property : byteProperties) {
+        for (String property : allPossible) {
             ItemStackHandler handler = createByteSlotHandler(property, existingConfig);
             byteSlotHandlers.put(property, handler);
         }
@@ -128,19 +142,22 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         ByteBlockConfiguration config = wandStack.getOrDefault(ModDataComponents.BYTE_BLOCK_CONFIG.get(), new ByteBlockConfiguration());
 
         ItemStackHandler handler = byteSlotHandlers.get(property);
+        Block defaultTexture = AllBlocks.COPYCAT_BASE.get();
 
-        Map<String, Block> textureMap = new HashMap<>(config.byteTextures());
-
-        if (textureMap.containsKey(property)) {
-            textureMap.remove(property);
+        if (config.isByteEnabled(property)) {
+            byteProperties.remove(property);
+            System.out.println("Removed byte: " + property);
         }
         else {
-            Block textureToApply = wandStack.get(ModDataComponents.WAND_BLOCK);
-            if (!handler.getStackInSlot(0).isEmpty() && handler.getStackInSlot(0).getItem() instanceof BlockItem blockItem) {
-                textureToApply = blockItem.getBlock();
+            config = config.withByteTextureBlock(property, defaultTexture);
+            if (!byteProperties.contains(property)) {
+                byteProperties.add(property);
             }
-            textureMap.put(property, textureToApply);
+            System.out.println("Added byte: " + property + " with texture: " + defaultTexture);
         }
+
+        wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), config);
+        updateWandConfiguration();
     }
 
     public ItemStack getMaterialForPart(String property) {
@@ -163,36 +180,39 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     public void updateWandConfiguration() {
+
+        if (this.player.level().isClientSide) return;
+
         ByteBlockConfiguration currentConfig = wandStack.getOrDefault(
             ModDataComponents.BYTE_BLOCK_CONFIG.get(),
             new ByteBlockConfiguration()
         );
 
-        System.out.println("Syncing wand config from Menu slots...");
+        Set<String> keysToSync = new HashSet<>(byteProperties);
+        keysToSync.addAll(currentConfig.getEnabledBytes());
+        System.out.println("DEBUG: Starting Sync. Unique keys to check: " + keysToSync.size());
 
-        for (String property : byteProperties) {
+        if (keysToSync.isEmpty()) {
+            System.out.println("DEBUG: No keys found, removing component.");
+            wandStack.remove(ModDataComponents.BYTE_BLOCK_CONFIG.get());
+            return;
+        }
+
+        for (String property : keysToSync) {
             ItemStackHandler handler = byteSlotHandlers.get(property);
             if (handler == null) continue;
-
             ItemStack textureStack = handler.getStackInSlot(0);
 
             if (!textureStack.isEmpty()) {
                 Block block = Block.byItem(textureStack.getItem());
                 currentConfig = currentConfig.withByteTextureBlock(property, block);
-                System.out.println("  Byte [" + property + "] -> " + block.getName().getString());
-            }
-            else {
-                currentConfig = currentConfig.withByteTextureBlock(property, null);
+                System.out.println("DEBUG: Found item in slot [" + property + "] -> " + block);
             }
         }
 
-        if (currentConfig.isEmpty()) {
-            wandStack.remove(ModDataComponents.BYTE_BLOCK_CONFIG.get());
-            System.out.println("Config is empty, removed from wand");
-        }
-        else {
+        if (!currentConfig.isEmpty()) {
             wandStack.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), currentConfig);
-            System.out.println("Saved config with " + currentConfig.getEnabledBytes().size() + " enabled bytes");
+            System.out.println("DEBUG: Successfully persisted " + currentConfig.getEnabledBytes().size() + " keys");
         }
     }
 
@@ -240,18 +260,9 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
     @Override
     public void removed(Player p) {
-        super.removed(p);
+        System.out.println("ByteConfigMenu: Menu removal triggered. Performing final sync");
         updateWandConfiguration();
-        ItemStack actualWand = p.getItemInHand(this.hand);
-        ByteBlockConfiguration finalConfig = wandStack.get(ModDataComponents.BYTE_BLOCK_CONFIG.get());
-
-        if (finalConfig != null) {
-            actualWand.set(ModDataComponents.BYTE_BLOCK_CONFIG.get(), finalConfig);
-            System.out.println("ByteConfigMenu closed, final config saved");
-        }
-        else {
-            System.out.println("final config was not saved, there's a problem");
-        }
+        super.removed(p);
     }
     
 }

@@ -83,15 +83,15 @@ public class AndesiteWandItem extends Item {
      * @param hand the hand which is using the wand
      */
     private static void openConfig(Level level, Player player, InteractionHand hand) {
-        // so this again checks to make sure this is happening on the server side and also that the player is an instance of a ServerPlayer. the ServerPlayer class extends the Player class, but has server attributes, like ServerGamePacketListenerImpl which seems to have to do with the server
+		// so this again checks to make sure this is happening on the server side and also that the player is an instance of a ServerPlayer. the ServerPlayer class extends the Player class, but has server attributes, like ServerGamePacketListenerImpl which seems to have to do with the server
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
             // creating a new instance of a MenuProvider, which is an interface type. it inherits other interfaces, which seemingly wouldn't be possible with other classes. this new instance overrides the necessary classes.
             MenuProvider containerProvider = new MenuProvider() {
                 // this just makes the display name which will be displayed when the menu is drawn
                 @Override
                 public Component getDisplayName() {
-                    return Component.literal("Wand Configuration");
-                }
+					return Component.literal("Wand Configuration");
+				}
 
                 // this makes the menu giving the important info. the level is seemingly no longer relevant since at this point we're in a menu, and not interacting with the world, but merely the players inventory and the menu itself.
                 @Override
