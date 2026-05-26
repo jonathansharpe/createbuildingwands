@@ -3,7 +3,7 @@ package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
-import com.avgusrname.createbuildingwands.networking.packet.clienttoserver.WandModePacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
@@ -38,6 +38,8 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         .map(WandMode::getDisplayName)
         .collect(Collectors.toList());
     
+    // constructor for the wand config screen
+    // sets the image width and height, may need to change to not hardcoded
     public WandConfigScreen(WandConfigMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
 
@@ -47,6 +49,7 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         this.inventoryLabelY = WandConfigMenu.INVENTORY_START_Y - 10;
     }
 
+    // initializes the screen and adds the mode scroll widget
     @Override
     protected void init() {
         super.init();
@@ -66,6 +69,7 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         this.addRenderableWidget(modeWidget);
     }
 
+    // renders all of the labels for the menu
     @Override
     protected void renderLabels(GuiGraphics guiGraphics, int pMouseX, int pMouseY) {
         super.renderLabels(guiGraphics, pMouseX, pMouseY);
@@ -82,6 +86,9 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         );
     }
 
+    // when the mode scroll widget is scrolled, this function is called
+    // handles the logic for selecting the wand mode
+    // involves sending a packet to the server to set the wand mode
     private void onModeScroll(int newIndex) {
         WandMode selectedMode = WandMode.values()[newIndex];
         InteractionHand hand = this.menu.getWandHand();

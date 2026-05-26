@@ -4,17 +4,21 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
 
-public record BlockReferenceComponent(ItemStack blockStack) {
-    public static final Codec<BlockReferenceComponent> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-        ItemStack.CODEC.fieldOf("Item").forGetter(BlockReferenceComponent::blockStack)
-    ).apply(instance, BlockReferenceComponent::new));
-
+public record BlockReferenceComponent(BlockState storedState) {
     public BlockReferenceComponent {
-        blockStack = blockStack.copyWithCount(1);
+        if (storedState == null) {
+            storedState = Blocks.AIR.defaultBlockState();
+        }
     }
+    public static final Codec<BlockReferenceComponent> CODEC = BlockState.CODEC.xmap(
+        BlockReferenceComponent::new, 
+        BlockReferenceComponent::storedState
+    );
 
-    public static DataComponentType.Builder<BlockReferenceComponent> builder() {
-        return DataComponentType.builder();
+    public ItemStack storedStateAsItemStack() {
+        return new ItemStack(storedState.getBlock());
     }
 }

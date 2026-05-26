@@ -23,6 +23,7 @@ import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandI
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.references.Items;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class WandConfigMenu extends AbstractContainerMenu{
 
@@ -35,8 +36,10 @@ public class WandConfigMenu extends AbstractContainerMenu{
 
     private final int initialModeIndex;
 
-    public static final int WAND_SLOT_X = 153;
+    public static final int WAND_SLOT_X = 134;
     public static final int WAND_SLOT_Y = 16;
+    public static final int COPYCAT_SLOT_X = 153;
+    public static final int COPYCAT_SLOT_Y = 16;
     public static final int INVENTORY_START_X = 8;
     public static final int INVENTORY_START_Y = 60;
     public static final int HOTBAR_START_Y = 118;
@@ -44,14 +47,15 @@ public class WandConfigMenu extends AbstractContainerMenu{
     private final ItemStackHandler wandSlotHandler = new ItemStackHandler(1) {
         @Override
         protected void onContentsChanged(int slot) {
-            ItemStack storedBlock = getStackInSlot(0);
+            ItemStack storedStack = getStackInSlot(0);
 
-            if (storedBlock.isEmpty()) {
+            if (storedStack.isEmpty()) {
                 wandItem.remove(ModDataComponents.WAND_BLOCK.get());
             }
             else {
-                BlockReferenceComponent component = new BlockReferenceComponent(storedBlock);
-                wandItem.set(ModDataComponents.WAND_BLOCK.get(), component);
+                if (storedStack.getItem() instanceof BlockItem storedBlock) {
+                    wandItem.set(ModDataComponents.WAND_BLOCK.get(), storedBlock.getBlock());
+                }
             }
 
             WandConfigMenu.this.broadcastChanges();
@@ -99,6 +103,54 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
     };
 
+    private final ItemStackHandler copycatSlotHandler = new ItemStackHandler(1) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            ItemStack storedStack = getStackInSlot(0);
+
+            if (storedStack.isEmpty()) {
+                wandItem.remove(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+            }
+            else if (storedStack.getItem() instanceof BlockItem copycatItem) {
+                wandItem.set(ModDataComponents.WAND_COPYCAT_BLOCK.get(), copycatItem.getBlock());
+            }
+
+            WandConfigMenu.this.broadcastChanges();
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            System.out.println("Copycat Slot insertItem() called; Performing overwrite.");
+
+            if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) {
+                return ItemStack.EMPTY;
+            }
+            else if (!this.isItemValid(slot, stack)) {
+                return stack;
+            }
+            else {
+                this.validateSlotIndex(slot);
+                if (!simulate) {
+                    this.stacks.set(slot, stack.copyWithCount(1));
+                }
+                this.onContentsChanged(slot);
+                return stack.copyWithCount(1);
+            }
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            System.out.println("Copycat Slot extractItem() called: Clearing reference slot.");
+
+            if (!this.getStackInSlot(slot).isEmpty()) {
+                if (!simulate) {
+                    this.setStackInSlot(slot, ItemStack.EMPTY);
+                }
+            }
+            return ItemStack.EMPTY;
+        }
+    };
+
     // this makes the menu n stuff
     public WandConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
         // calls the parent constructor to make a menu given this information
@@ -118,14 +170,14 @@ public class WandConfigMenu extends AbstractContainerMenu{
         this.initialModeIndex = currentMode.ordinal();
 
         // the data for the block stored in the wand is fetched here and tells the menu what it is
-        BlockReferenceComponent component = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
+        Block regularBlock = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
 
         // the block inside the wand, set to empty by default i guess
         ItemStack storedStack = ItemStack.EMPTY;
 
         // if there IS a stored block, it'll apply that to the slot: i.e. the block with stack of 1; could also be empty 
-        if (component != null) {
-            storedStack = component.blockStack();
+        if (regularBlock != null) {
+            storedStack = new ItemStack(regularBlock.asItem());
         }
 
         // if the stack is not empty or invalid or whatever, set the stack to be the block there
@@ -136,11 +188,23 @@ public class WandConfigMenu extends AbstractContainerMenu{
         // add the slot to the menu
         this.addSlot(new WandBlockSlot(wandSlotHandler, 0, WAND_SLOT_X, WAND_SLOT_Y));
 
+        Block copycatBlock = this.wandItem.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+        ItemStack copycatStoredStack = ItemStack.EMPTY;
+
+        if (copycatBlock != null) {
+            copycatStoredStack = new ItemStack(copycatBlock.asItem());
+        }
+
+        if (!copycatStoredStack.isEmpty()) {
+            this.copycatSlotHandler.setStackInSlot(0, copycatStoredStack.copyWithCount(1));
+        }
+
+        this.addSlot(new WandBlockSlot(copycatSlotHandler, 0, COPYCAT_SLOT_X, COPYCAT_SLOT_Y));
+
         // this just draws the inventory on the screen below the wand menu. will need to revise this eventually
         layoutPlayerInventory(pPlayerInventory);
     }
 
-    // TODO: you need to overwrite the clicked() method for more debugging, as the insertItem() method is not being called
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
         // debugging statements
@@ -150,11 +214,46 @@ public class WandConfigMenu extends AbstractContainerMenu{
 
         if (slotId == 0) {
             // gets the wand slot
-            Slot wandSlot = this.slots.get(0);
+            Slot wandSlot = this.slots.get(slotId);
             // gets what the player is carrying
             ItemStack cursorStack = player.containerMenu.getCarried();
 
             System.out.println("    -> Target is WAND SLOT (ID 0)");
+
+            if (!cursorStack.isEmpty() && cursorStack.getItem() instanceof BlockItem) {
+                if (clickType == ClickType.THROW || clickType == ClickType.CLONE || clickType == ClickType.SWAP) {
+                    System.out.println("    -> Insertion attempt rejected for specified click type (" + clickType + "). Delegating.");
+                    super.clicked(slotId, button, clickType, player);
+                    return;
+                }
+                ItemStack configStack = wandSlotHandler.insertItem(0, cursorStack, false);
+                wandSlot.setChanged();
+
+                System.out.println("    -> slot now contains: " + configStack.getHoverName().getString());
+                System.out.println("--- CLICK END (MANUAL INSERT) ---");
+                return;
+            }
+            // due to the above if statement we already know that cursorStack is empty, so we can just extract the item from the slot
+            else if (!wandSlot.getItem().isEmpty()) {
+                // TODO THIS DOESN'T WORK FOR SOME REASON
+                wandSlotHandler.extractItem(0, 1, false);
+                wandSlot.setChanged();
+
+                System.out.println("    -> MANUAL EXTRACTION/CLEAR COMPLETE.");
+                System.out.println("--- CLICK END (MANUAL EXTRACT) ---");
+                return;
+            }
+            System.out.println("    -> UNHANDLED WAND SLOT CLICK. Delegating.");
+            super.clicked(slotId, button, clickType, player);
+            System.out.println("--- CLICK END (DELEGATE) ---");
+            return;
+        }
+        else if (slotId == 1) {
+            // gets the copycat slot
+            Slot copycatSlot = this.slots.get(1);
+            ItemStack cursorStack = player.containerMenu.getCarried();
+
+            System.out.println("    -> Target is COPYCAT SLOT (ID 1)");
 
             if (!cursorStack.isEmpty() && (cursorStack.getItem() instanceof BlockItem)) {
                 if (clickType == ClickType.THROW || clickType == ClickType.CLONE || clickType == ClickType.SWAP) {
@@ -163,34 +262,34 @@ public class WandConfigMenu extends AbstractContainerMenu{
                     return;
                 }
                 else {
-                    ItemStack remainingStack = wandSlotHandler.insertItem(0, cursorStack, false);
-
-                    // player.containerMenu.setCarried(remainingStack);
-                    wandSlot.setChanged();
+                    ItemStack remainingStack = copycatSlotHandler.insertItem(0, cursorStack, false);
+                    copycatSlot.setChanged();
                     
-                    System.out.println("    -> MANUAL INSERTION COMPLETE. Remaining on cursor: " + remainingStack.getCount());
-                    System.out.println("--- CLICK END (MANUAL INSERT) ---");
+                    System.out.println("    -> COPYCAT MANUAL INSERTION COMPLETE. Remaining on cursor: " + remainingStack.getCount());
+                    System.out.println("--- CLICK END (COPYCAT MANUAL INSERT) ---");
                     return;
                 }
             }
-            else if (cursorStack.isEmpty() && (clickType == ClickType.PICKUP || clickType == ClickType.QUICK_MOVE) && !wandSlot.getItem().isEmpty()) {
-                wandSlotHandler.extractItem(0, 1, false);
-                wandSlot.setChanged();
+            else if (cursorStack.isEmpty() && (clickType == ClickType.PICKUP || clickType == ClickType.QUICK_MOVE) && !copycatSlot.getItem().isEmpty()) {
+                copycatSlotHandler.extractItem(0, 1, false);
+                copycatSlot.setChanged();
 
-                System.out.println("    -> MANUAL EXTRACTION/CLEAR COMPLETE.");
-                System.out.println("--- CLICK END (MANUAL EXTRACT) ---");
+                System.out.println("    -> COPYCAT MANUAL EXTRACTION/CLEAR COMPLETE.");
+                System.out.println("--- CLICK END (COPYCAT MANUAL EXTRACT) ---");
                 return;
             }
             else {
-                System.out.println("    -> UNHANDLED WAND SLOT CLICK. Delegating.");
+                System.out.println("    -> UNHANDLED COPYCAT SLOT CLICK. Delegating.");
                 super.clicked(slotId, button, clickType, player);
-                System.out.println("--- CLICK END (DELEGATE) ---");
+                System.out.println("--- CLICK END (COPYCAT DELEGATE) ---");
                 return;
             }
         }
         super.clicked(slotId, button, clickType, player);
         System.out.println("--- CLICK END (DEFAULT) ---");
+
     }
+
 
     public int getInitialModeIndex() { return initialModeIndex; }
 
@@ -225,19 +324,27 @@ public class WandConfigMenu extends AbstractContainerMenu{
 
             final int WAND_SLOT_START = 0;
             final int WAND_SLOT_END = 1;
-            final int PLAYER_INV_START = 1;
+            final int COPYCAT_SLOT_START = 1;
+            final int COPYCAT_SLOT_END = 2;
+            final int PLAYER_INV_START = 2;
             final int PLAYER_INV_END = PLAYER_INV_START + 36;
 
-            Slot wandReferenceSlot = this.slots.get(WAND_SLOT_START);
-
-            // shift clicking from wand slot to inventory
-            // will clear the slot
+            // shift clicking from wand slot (regular block) to inventory
             if (pIndex >= WAND_SLOT_START && pIndex < WAND_SLOT_END) {
+                Slot wandReferenceSlot = this.slots.get(WAND_SLOT_START);
                 if (!wandReferenceSlot.getItem().isEmpty()) {
                     this.wandSlotHandler.extractItem(0, 1, false);
                     wandReferenceSlot.setChanged();
                 }
-
+                return ItemStack.EMPTY;
+            }
+            // shift clicking from copycat slot to inventory
+            else if (pIndex >= COPYCAT_SLOT_START && pIndex < COPYCAT_SLOT_END) {
+                Slot copycatReferenceSlot = this.slots.get(COPYCAT_SLOT_START);
+                if (!copycatReferenceSlot.getItem().isEmpty()) {
+                    this.copycatSlotHandler.extractItem(0, 1, false);
+                    copycatReferenceSlot.setChanged();
+                }
                 return ItemStack.EMPTY;
             }
             else if (pIndex >= PLAYER_INV_START && pIndex < PLAYER_INV_END) {
@@ -245,15 +352,25 @@ public class WandConfigMenu extends AbstractContainerMenu{
                     return ItemStack.EMPTY;
                 }
                 ItemStack stackToMove = slotStack.copyWithCount(1);
-                this.wandSlotHandler.insertItem(0, stackToMove, false);
-
-                if (wandReferenceSlot.getItem().isEmpty()) {
+                
+                // Try to insert into copycat slot first if it's empty, otherwise regular slot
+                Slot copycatSlot = this.slots.get(COPYCAT_SLOT_START);
+                Slot wandSlot = this.slots.get(WAND_SLOT_START);
+                
+                if (copycatSlot.getItem().isEmpty()) {
+                    this.copycatSlotHandler.insertItem(0, stackToMove, false);
+                    copycatSlot.setChanged();
                     return originalStack;
                 }
-
-                slot.setChanged();
-                wandReferenceSlot.setChanged();
-                return ItemStack.EMPTY;
+                else if (wandSlot.getItem().isEmpty()) {
+                    this.wandSlotHandler.insertItem(0, stackToMove, false);
+                    wandSlot.setChanged();
+                    return originalStack;
+                }
+                else {
+                    // Both slots full, don't move
+                    return ItemStack.EMPTY;
+                }
             }
 
             if (slot.getItem().isEmpty()) {

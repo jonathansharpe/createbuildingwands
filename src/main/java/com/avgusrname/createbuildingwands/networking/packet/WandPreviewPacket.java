@@ -1,11 +1,10 @@
-package com.avgusrname.createbuildingwands.networking.packet.servertoclient;
+package com.avgusrname.createbuildingwands.networking.packet;
 
 import javax.annotation.Nullable;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
-import com.avgusrname.createbuildingwands.networking.ModPackets;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
