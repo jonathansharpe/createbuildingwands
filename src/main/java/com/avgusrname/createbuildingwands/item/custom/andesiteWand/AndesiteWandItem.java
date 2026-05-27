@@ -16,11 +16,13 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.SlabType;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.MenuProvider;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SlabBlock;
@@ -41,6 +43,7 @@ import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigMenu;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
 
@@ -107,6 +110,12 @@ public class AndesiteWandItem extends Item {
         }
     }
     
+    public static void openByteConfig(Player player, int wandSlotIndex) {
+        player.openMenu(new SimpleMenuProvider((containerId, playerInventory, playerEntity) -> {
+            return new ByteConfigMenu(containerId, playerInventory, new ItemStackHandler(1), wandSlotIndex);
+        }, Component.literal("Copycat Byte Configuration")));
+    }
+
     @Override
     public InteractionResultHolder<ItemStack> use(Level pLevel, Player pPlayer, InteractionHand pHand) {
         ItemStack itemStack = pPlayer.getItemInHand(pHand);

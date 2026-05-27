@@ -8,6 +8,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
@@ -56,6 +57,8 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
 
         int modeWidgetX = this.leftPos + 8;
         int modeWidgetY = this.topPos + 35;
+        int xOffset = this.leftPos + 100;
+        int yOffset = this.topPos + 100;
 
         int initialModeIndex = this.menu.getInitialModeIndex();
 
@@ -67,6 +70,15 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
             this::onModeScroll
         );
         this.addRenderableWidget(modeWidget);
+
+        // adds widget for copycat multistate config
+        this.addRenderableWidget(Button.builder(Component.literal("Configure Byte"), button -> {
+            Minecraft.getInstance().setScreen(new ByteConfigScreen(
+                new ByteConfigMenu(0, Minecraft.getInstance().player.getInventory()), 
+                Minecraft.getInstance().player.getInventory(),
+                Component.literal("Prototyping Screen")
+            ));
+        }).bounds(xOffset, yOffset, 100, 20).build());
     }
 
     // renders all of the labels for the menu

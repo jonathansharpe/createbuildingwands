@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigScreen;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
 import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
@@ -62,6 +63,10 @@ public class CreateBuildingWands {
             event.register(
                 ModMenuTypes.WAND_CONFIG_MENU.get(), 
                 WandConfigScreen::new
+            );
+            event.register(
+                ModMenuTypes.BYTE_CONFIG_MENU.get(),
+                ByteConfigScreen::new
             );
         }
 

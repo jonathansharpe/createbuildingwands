@@ -17,6 +17,11 @@ public class ModMenuTypes {
     
     public static final DeferredHolder<MenuType<?>, MenuType<WandConfigMenu>> WAND_CONFIG_MENU =
         registerMenuType("wand_config_menu", WandConfigMenu::new);
+
+    public static final DeferredHolder<MenuType<?>, MenuType<ByteConfigMenu>> BYTE_CONFIG_MENU = 
+        MENUS.register("byte_config", () -> IMenuTypeExtension.create((windowId, inv, data) -> {
+            return new ByteConfigMenu(windowId, inv);
+        }));
     
     private static <T extends AbstractContainerMenu>DeferredHolder<MenuType<?>, MenuType<T>> registerMenuType(String name, IContainerFactory<T> factory) {
         return MENUS.register(name, () -> IMenuTypeExtension.create(factory));
