@@ -169,6 +169,8 @@ public class AndesiteWandItem extends Item {
                     // Prefer copycat block for preview if set, otherwise use regular block
                     Block copycat = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
                     Block regular = heldWand.get(ModDataComponents.WAND_BLOCK.get());
+
+                    CreateBuildingWands.LOGGER.info("regular block is: {}", regular);
                     
                     ItemStack selection = (copycat != null && !copycat.defaultBlockState().isAir())
                         ? new ItemStack(copycat.asItem())
@@ -195,6 +197,8 @@ public class AndesiteWandItem extends Item {
         Block copycatBlock = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
         Block overrideMaterial = heldWand.get(ModDataComponents.WAND_BLOCK.get());
 
+        CreateBuildingWands.LOGGER.info("overrideMaterial (material to apply to copycat) is: {}", overrideMaterial);
+
         Block blockToPlace;
         boolean isCopycatPlacement = false;
         if (copycatBlock != null && !copycatBlock.defaultBlockState().isAir()) {
@@ -211,6 +215,7 @@ public class AndesiteWandItem extends Item {
         }
 
         ItemStack materialStack = (overrideMaterial != null) ? new ItemStack(overrideMaterial.asItem()) : ItemStack.EMPTY;
+        CreateBuildingWands.LOGGER.info("materialStack is: {}", materialStack);
 
         boolean successfulPlacement = false;
 
@@ -238,6 +243,7 @@ public class AndesiteWandItem extends Item {
     }
 
     private boolean performPlacement(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
+        CreateBuildingWands.LOGGER.info("material to place (at top of performPlacement) is: {}", material);
         if (!level.getBlockState(pos).canBeReplaced()) return false;
 
         BlockPlaceContext localContext = BlockPlaceContext.at(originalContext, pos, clickedFace);
@@ -248,8 +254,11 @@ public class AndesiteWandItem extends Item {
             if (isCopycat) {
                 System.out.println("block placement succeeded");
                 String property = determinePropertyFromFace(stateToPlace, clickedFace);
-                BlockState materialState = block.defaultBlockState();
 
+                Block actualBlock = Block.byItem(material.getItem());
+                BlockState materialState = actualBlock.defaultBlockState();
+
+                CreateBuildingWands.LOGGER.info("material to place is: {}", materialState);
                 applyCopycatMaterial(level, pos, materialState, material, property);
                 System.out.println("applied copycat material");
                 return true;
@@ -340,6 +349,7 @@ public class AndesiteWandItem extends Item {
      */
     private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
         // TODO implement a randomizer functionality, using the create list filter
+        // TODO fix this method so it just uses performPlacement but many times, should inherently fix the problem of the copycat texture not applying
         if (level.isClientSide) return false;
 
         BlockPos clickedPos = context.getClickedPos();
@@ -432,22 +442,8 @@ public class AndesiteWandItem extends Item {
                 System.out.println("Current block at position: " + level.getBlockState(pos));
                 System.out.println("Can be replaced: " + level.getBlockState(pos).canBeReplaced());
 
-                if (!level.getBlockState(pos).canBeReplaced()) {
-                    System.out.println("Skipping non-replaceable block at " + pos);
-                    continue;
-                }
-                System.out.println("Placing " + masterState + " at " + pos);
-                if (level.setBlock(pos, masterState, 3)) {
-                    System.out.println("Successfully placed block at " + pos);
-                    placedCount++;
-                    if (useCopycat) {
-                        String property = determinePropertyFromFace(masterState, face);
-                        applyCopycatMaterial(level, endPos, masterState, regularStack, property);
-                    }
-                }
-                else {
-                    System.out.println("Failed to place block at " + pos);
-                }
+                performPlacement(level, player, pos, blockToPlace, regularStack, useCopycat, face, context);
+                placedCount++;
             }
 
             System.out.println("Placed " + placedCount + " blocks total");
@@ -475,10 +471,6 @@ public class AndesiteWandItem extends Item {
             player.displayClientMessage(Component.literal("Start position set"), true);
             return true;
         }
-    }
-
-    private BlockPos getAdjustedLocation(Level level, BlockPos pos, Direction face) {
-        return level.getBlockState(pos).canBeReplaced() ? pos : pos.relative(face);
     }
 
     private BlockState getOrientedBlockState(Block block, BlockPlaceContext context) {
@@ -523,8 +515,10 @@ public class AndesiteWandItem extends Item {
         if (be == null) return;
         BlockState actualState = level.getBlockState(pos);
 
+
         // type checking for a copycats+ copycat
-        CreateBuildingWands.LOGGER.info("be type is {}", be);
+        CreateBuildingWands.LOGGER.info("BE Class: {}", be.getClass().getName());
+        CreateBuildingWands.LOGGER.info("Interfaces: {}", java.util.Arrays.toString(be.getClass().getInterfaces()));
 
         if (be instanceof IMultiStateCopycatBlockEntity multiStateCopycatBE) {
             if (materialState.getBlock() == level.getBlockState(pos).getBlock()) {
@@ -545,9 +539,15 @@ public class AndesiteWandItem extends Item {
         }
 
         else if (be instanceof ICopycatBlockEntity copycatBE) {
+            CreateBuildingWands.LOGGER.info("BE class is type: {}", be);
+            CreateBuildingWands.LOGGER.info("materialState.getBlock() is: {}", materialState.getBlock());
+            CreateBuildingWands.LOGGER.info("level.getBlockState(pos).getBlock() is: {}", level.getBlockState(pos).getBlock());
             if (materialState.getBlock() == level.getBlockState(pos).getBlock()) {
                 return;
             }
+            CreateBuildingWands.LOGGER.info("materialState value is: {}", materialState);
+            CreateBuildingWands.LOGGER.info("materialItemStack value is: {}", materialItemStack);
+
             copycatBE.setMaterial(materialState);
             copycatBE.setConsumedItem(materialItemStack);
             copycatBE.notifyUpdate();
