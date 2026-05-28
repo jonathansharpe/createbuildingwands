@@ -6,9 +6,12 @@ import org.slf4j.LoggerFactory;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigMenu;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigScreen;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
+import com.avgusrname.createbuildingwands.networking.packet.CornerTogglePacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
 
@@ -28,6 +31,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.world.entity.player.Player;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(value = CreateBuildingWands.MODID, dist = Dist.CLIENT)
@@ -86,6 +90,20 @@ public class CreateBuildingWands {
                 WandPreviewPacket.STREAM_CODEC,
                 (payload, context) -> {
                     context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context));
+                }
+            );
+
+            registrar.playBidirectional(
+                CornerTogglePacket.TYPE, 
+                CornerTogglePacket.CODEC, 
+                (payload, context) -> {
+                    Player player = context.player();
+
+                    if (player.containerMenu instanceof ByteConfigMenu menu) {
+                        ByteCopycatCorner corner = 
+                            ByteCopycatCorner.values()[payload.cornerOrdinal()];
+                        menu.handleServerToggle(corner);
+                    }
                 }
             );
 
