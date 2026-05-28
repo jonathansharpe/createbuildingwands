@@ -1,5 +1,6 @@
 package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
 
 import net.minecraft.core.component.DataComponents;
@@ -21,10 +22,6 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     
     private final IItemHandler cornerItemHandler;
     private final int lockedWandSlotIndex;
-
-    public ByteConfigMenu(int containerId, Inventory playerInventory) {
-        this(containerId, playerInventory, new ItemStackHandler(8), -1);
-    }
 
     public ByteConfigMenu(int containerId, Inventory playerInventory, IItemHandler itemHandler, int lockedWandSlotIndex) {
         super(TYPE, containerId);
@@ -112,26 +109,34 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     public void handleServerToggle(ByteCopycatCorner corner) {
         int actualSlotIndex = this.lockedWandSlotIndex + 35;
 
+        CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu] attempting to toggle the corner on the server");
+
         if (actualSlotIndex >= 0 && actualSlotIndex < this.slots.size()) {
+
+            CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu] actualSlotIndex is within range yippee: {}", actualSlotIndex);
             ItemStack wandStack = this.slots.get(actualSlotIndex).getItem();
 
             if (!wandStack.isEmpty()) {
                 CustomData.update(
-                    DataComponents.CUSTOM_DATA, 
-                    wandStack, 
-                    tag -> {
-                        CompoundTag materialData = tag.getCompound("material_data");
+                        DataComponents.CUSTOM_DATA,
+                        wandStack,
+                        tag -> {
 
-                        String cornerKey = corner.getNbtKey();
-                        CompoundTag cornerTag = materialData.getCompound(cornerKey);
+                            int[] activeCorners = tag.getIntArray("active_corners");
+                            if (activeCorners.length != 8) {
+                                activeCorners = new int[] { 0, 0, 0, 0, 0, 0, 0, 0 };
+                            }
 
-                        boolean currentFlag = !cornerTag.contains("enableCT") || cornerTag.getBoolean("enableCT");
+                            int index = corner.ordinal();
+                            activeCorners[index] = (activeCorners[index] == 1) ? 0 : 1;
 
-                        cornerTag.putByte("enableCT", (byte) (!currentFlag ? 1 : 0));
+                            tag.putIntArray("active_corners", activeCorners);
+                            CompoundTag materialData = tag.getCompound("material_data");
+                            CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
+                            cornerTag.putByte("enableCT", (byte) 0);
 
-                        materialData.put(cornerKey, cornerTag);
-                        tag.put("material_data", materialData);
-                    });
+                            CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu] tag value is: {}", tag);
+                        });
             }
             this.broadcastChanges();
         }
@@ -145,6 +150,15 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
     public int getLockedWandSlotIndex() {
         return this.lockedWandSlotIndex;
+    }
+
+    public static MenuType<ByteConfigMenu> getTypeReference() {
+        return ModMenuTypes.BYTE_CONFIG_MENU.get();
+    }
+
+    @Override
+    public MenuType<?> getType() {
+        return ModMenuTypes.BYTE_CONFIG_MENU.get();
     }
 
 }

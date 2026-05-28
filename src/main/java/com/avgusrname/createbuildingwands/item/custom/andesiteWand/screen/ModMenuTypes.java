@@ -7,6 +7,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.IContainerFactory;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -19,8 +20,10 @@ public class ModMenuTypes {
         registerMenuType("wand_config_menu", WandConfigMenu::new);
 
     public static final DeferredHolder<MenuType<?>, MenuType<ByteConfigMenu>> BYTE_CONFIG_MENU = 
-        MENUS.register("byte_config", () -> IMenuTypeExtension.create((windowId, inv, data) -> {
-            return new ByteConfigMenu(windowId, inv);
+        MENUS.register("byte_config_menu", () -> IMenuTypeExtension.create((containerId, playerInventory, buf) -> {
+            int lockedSlot = buf.readInt();
+
+            return new ByteConfigMenu(containerId, playerInventory, new ItemStackHandler(8), lockedSlot);
         }));
     
     private static <T extends AbstractContainerMenu>DeferredHolder<MenuType<?>, MenuType<T>> registerMenuType(String name, IContainerFactory<T> factory) {

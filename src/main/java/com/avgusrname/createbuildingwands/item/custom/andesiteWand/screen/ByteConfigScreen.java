@@ -55,13 +55,16 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 			int yOffset = centerY + 24 + (row * (btnHeight + spacing));
 
 			this.addRenderableWidget(Button.builder(
-				Component.literal("C" + cornerIndex + ": OFF"),
-				button -> {
-					PacketDistributor.sendToServer(new CornerTogglePacket(cornerIndex));
-				})
-				.bounds(xOffset, yOffset, btnWidth, btnHeight)
-				.build()
-			);
+					Component.literal("C" + cornerIndex + ": OFF"),
+					button -> {
+						CreateBuildingWands.LOGGER.info("[WandDebug] Client clicked Button for Corner Index: {}",
+								cornerIndex);
+						PacketDistributor.sendToServer(new CornerTogglePacket(cornerIndex));
+						this.updateButtonMessages();
+					})
+					.bounds(xOffset, yOffset, btnWidth, btnHeight)
+					.build());
+			CreateBuildingWands.LOGGER.info("[WandDebug] Sent CornerTogglePayload package to Server");
 		}
 	}
 
@@ -79,35 +82,37 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 	}
 
 	private void updateButtonMessages() {
+		// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] updateButtonMessages called");
+
+		// add the 35 here because 0-7 are the 8 copycat block slots, 8-35 is player main inventory, 36-44 is the hotbar
 		int actualSlotIndex = this.menu.getLockedWandSlotIndex() + 35;
+		// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] value of actualSlotIndex is {}", actualSlotIndex);
 		if (actualSlotIndex < 0 || actualSlotIndex >= this.menu.slots.size()) return;
 
 		ItemStack wandStack = this.menu.slots.get(actualSlotIndex).getItem();
-
 		int buttonIndex = 0;
+
+		int[] activeCorners = new int[] {0, 0, 0, 0, 0, 0, 0, 0};
+		if (wandStack.has(DataComponents.CUSTOM_DATA)) {
+			CompoundTag tag = wandStack.get(DataComponents.CUSTOM_DATA).copyTag();
+			if (tag.contains("active_corners")) {
+				activeCorners = tag.getIntArray("active_corners");
+			}
+		} else {
+			// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] wandStack does not have the correct customdata");
+		}
+
+		// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] value of activeCorners is: {}", activeCorners);
+
 		for (var widget : this.renderables) {
 			if (widget instanceof Button button && buttonIndex < 8) {
-				ByteCopycatCorner corner = ByteCopycatCorner.values()[buttonIndex];
+				boolean isActivated = buttonIndex < activeCorners.length && activeCorners[buttonIndex] == 1;
 
-				boolean isEnabled = true;
+				// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] updating the text of a button");
 
-				if (wandStack.has(DataComponents.CUSTOM_DATA)) {
-					CompoundTag tag = wandStack.get(DataComponents.CUSTOM_DATA).copyTag();
-					CompoundTag materialData = tag.getCompound("material_data");
-
-					if (materialData.contains(corner.getNbtKey())) {
-						CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
-						if (cornerTag.contains("enableCT")) {
-							isEnabled = cornerTag.getBoolean("enableCT");
-						}
-					}
-				}
-
-				button.setMessage(Component.literal("C" + buttonIndex + (isEnabled ? ": ON" : ": OFF")));
+				button.setMessage(Component.literal("C" + buttonIndex + (isActivated ? ": ON" : ": OFF")));
 				buttonIndex++;
 			}
 		}
 	}
-
-	private boolean isCornerActive = false;
 }

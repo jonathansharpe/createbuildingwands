@@ -12,7 +12,7 @@ import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMen
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
 import com.avgusrname.createbuildingwands.networking.packet.CornerTogglePacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
 
 import net.neoforged.bus.api.IEventBus;
@@ -78,10 +78,10 @@ public class CreateBuildingWands {
         public static void registerPayloads(final RegisterPayloadHandlersEvent event) {
             final PayloadRegistrar registrar = event.registrar("1");
             registrar.playBidirectional(
-                WandModePacket.TYPE,
-                WandModePacket.STREAM_CODEC,
+                WandPacket.TYPE,
+                WandPacket.STREAM_CODEC,
                 (payload, context) -> {
-                    context.enqueueWork(() -> WandModePacket.handleOnServer(payload, context));
+                    context.enqueueWork(() -> WandPacket.handleOnServer(payload, context));
                 }
             );
 
@@ -98,11 +98,16 @@ public class CreateBuildingWands {
                 CornerTogglePacket.CODEC, 
                 (payload, context) -> {
                     Player player = context.player();
+                    CreateBuildingWands.LOGGER.info("[WandDebug] Server received packet payload for Corner Ordinal: {}", payload.cornerOrdinal(), player.getName().getString());
 
                     if (player.containerMenu instanceof ByteConfigMenu menu) {
+                        CreateBuildingWands.LOGGER.info("[WandDebug] Valid container match found! Passing execution to handleServerToggle.");
                         ByteCopycatCorner corner = 
                             ByteCopycatCorner.values()[payload.cornerOrdinal()];
                         menu.handleServerToggle(corner);
+                    }
+                    else {
+                        CreateBuildingWands.LOGGER.warn("[WandDebug] Packet dropped! Player container menu is NOT an instance of ByteConfigMenu. Active Container: {}", player.containerMenu.getClass().getSimpleName());
                     }
                 }
             );

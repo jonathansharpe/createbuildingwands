@@ -3,7 +3,8 @@ package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
-import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandPacket.WandCommand;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
@@ -63,21 +65,24 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         int initialModeIndex = this.menu.getInitialModeIndex();
 
         this.modeWidget = new WandModeScrollWidget(
-            modeWidgetX,
-            modeWidgetY,
-            WAND_MODE_NAMES,
-            initialModeIndex,
-            this::onModeScroll
-        );
+                modeWidgetX,
+                modeWidgetY,
+                WAND_MODE_NAMES,
+                initialModeIndex,
+                this::onModeScroll);
         this.addRenderableWidget(modeWidget);
 
         // adds widget for copycat multistate config
         this.addRenderableWidget(Button.builder(Component.literal("Configure Byte"), button -> {
-            Minecraft.getInstance().setScreen(new ByteConfigScreen(
-                new ByteConfigMenu(0, Minecraft.getInstance().player.getInventory()), 
-                Minecraft.getInstance().player.getInventory(),
-                Component.literal("Prototyping Screen")
-            ));
+            CreateBuildingWands.LOGGER.info("[WandDebug] Sending multi-purpose WandPacket to request server menu switch...");
+            PacketDistributor.sendToServer(
+                    new WandPacket(
+                            WandCommand.OPEN_BYTE_CONFIG_MENU,
+                            0,
+                            Optional.empty(),
+                            this.menu.getWandHand()
+                        )
+                    );
         }).bounds(xOffset, yOffset, 100, 20).build());
     }
 
@@ -110,7 +115,7 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
             true
         );
         
-        PacketDistributor.sendToServer(new WandModePacket(selectedMode, hand));
+        PacketDistributor.sendToServer(new WandPacket(WandPacket.WandCommand.SET_MODE, 0, Optional.of(selectedMode), hand));
     }
     
     @Override
