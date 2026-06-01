@@ -117,10 +117,11 @@ public class AndesiteWandItem extends Item {
         }
     }
     
-    public static void openByteConfig(Player player, int wandSlotIndex) {
+    public static void openByteConfig(Player player, InteractionHand hand) {
         player.openMenu(new SimpleMenuProvider((containerId, playerInventory, playerEntity) -> {
-            return new ByteConfigMenu(containerId, playerInventory, new ItemStackHandler(1), wandSlotIndex);
+            return new ByteConfigMenu(containerId, playerInventory, hand);
         }, Component.literal("Copycat Byte Configuration")));
+        CreateBuildingWands.LOGGER.info("[WandDebug openByteConfig] opening byte config");
     }
 
     @Override

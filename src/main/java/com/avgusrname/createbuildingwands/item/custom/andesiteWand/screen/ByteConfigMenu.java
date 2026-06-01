@@ -5,6 +5,8 @@ import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCo
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -14,58 +16,82 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.SlotItemHandler;
 
 public class ByteConfigMenu extends AbstractContainerMenu {
-    public static final MenuType<ByteConfigMenu> TYPE = null;
-    
-    private final IItemHandler cornerItemHandler;
-    private final int lockedWandSlotIndex;
+    private final InteractionHand wandHand;
+    private final ItemStack wandItem;
+    private final ItemStackHandler byteSlotHandler;
+    private final Player player;
 
-    public ByteConfigMenu(int containerId, Inventory playerInventory, IItemHandler itemHandler, int lockedWandSlotIndex) {
-        super(TYPE, containerId);
-        this.cornerItemHandler = itemHandler;
-        this.lockedWandSlotIndex = lockedWandSlotIndex;
+    public static final int BTN_WIDTH = 95;
+    public static final int BTN_HEIGHT = 20;
+    public static final int SLOT_SIZE = 18;
+    public static final int H_SPACING = 12;
+    public static final int V_SPACING = 6;
 
-        int btnWidth = 34;
-        int btnHeight = 20;
-        int spacing = 4;
+    public static final int PANEL_INNER_X = 12;
+    public static final int PANEL_INNER_Y = 18;
 
-        for (ByteCopycatCorner corner : ByteCopycatCorner.values()) {
-            int i = corner.ordinal();
+    public ByteConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
+        super(ModMenuTypes.BYTE_CONFIG_MENU.get(), pContainerId);
+        this.wandHand = pHand;
+        this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
+        this.player = pPlayerInventory.player;
+        this.byteSlotHandler = new ItemStackHandler(8);
 
-            int group = i / 4;
-            int column = i % 2;
-            int row = (i % 4) / 2;
+        for (int i = 0; i < 8; i++) {
+            int[] coords = getComponentCoordinates(i);
 
-            // EXACT mirror of your Screen layout coordinates, shifted right by 38 pixels
-            // to put the item slot neatly to the right of the button text box
-            int xPos = 12 + (group * (btnWidth * 2 + 16)) + (column * (btnWidth + spacing)) + 38;
-            int yPos = 24 + (row * (btnHeight + spacing)) + 2;
-            this.addSlot(new WandBlockSlot(itemHandler, i, xPos, yPos));
+            int slotX = coords[0] + BTN_WIDTH + 4;
+            int slotY = coords[1] + 1;
+
+            this.addSlot(new SlotItemHandler(byteSlotHandler, i, slotX, slotY));
         }
 
+        int invTopY = 132;
         for (int row = 0; row < 3; ++row) {
             for (int col = 0; col < 9; ++col) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
+                this.addSlot(new Slot(pPlayerInventory, col + row * 9 + 9, col * 18, invTopY + row * 18));
             }
         }
 
+        int hotbarTopY = 190;
         for (int col = 0; col < 9; ++col) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 142) {
-                @Override
-                public boolean mayPickup(Player player) {
-                    return this.getSlotIndex() != ByteConfigMenu.this.lockedWandSlotIndex;
-                }
-            });
+            this.addSlot(new Slot(pPlayerInventory, col, 8 + col * 18, hotbarTopY));
         }
+    }
+
+    public static int[] getComponentCoordinates(int index) {
+        int row = index % 4;
+        int col = index / 4;
+
+        int columnWidth = BTN_WIDTH + 4 + SLOT_SIZE + H_SPACING;
+
+        int x = PANEL_INNER_X + (col * columnWidth);
+        int y = PANEL_INNER_Y + (row * (BTN_HEIGHT + V_SPACING));
+
+        return new int[]{x, y};
     }
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (slotId == -999) {
-            super.clicked(slotId, button, clickType, player);
+        if (slotId >= 0 && slotId < 8) {
+
+            Slot targetSlot = this.slots.get(slotId);
+            ItemStack carriedStack = player.containerMenu.getCarried();
+
+            ByteCopycatCorner corner = ByteCopycatCorner.values()[slotId];
+
+            if (carriedStack.isEmpty()) {
+                targetSlot.set(ItemStack.EMPTY);
+                saveSlotMaterialToWand(corner, ItemStack.EMPTY);
+            } else {
+                ItemStack ghostClone = carriedStack.copyWithCount(1);
+                targetSlot.set(ghostClone);
+                saveSlotMaterialToWand(corner, ghostClone);
+            }
             return;
         }
         super.clicked(slotId, button, clickType, player);
@@ -73,74 +99,55 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        ItemStack itemStack = ItemStack.EMPTY;
-        Slot slot = this.slots.get(index);
+        if (index >= 8) {
+            Slot sourceSlot = this.slots.get(index);
+            if (sourceSlot != null && sourceSlot.hasItem()) {
+                ItemStack stackInSource = sourceSlot.getItem();
 
-        if (slot != null && slot.hasItem()) {
-            ItemStack itemStack2 = slot.getItem();
-            itemStack = itemStack2.copy();
-
-            // Index 0-7 are our custom corner input slots
-            if (index < 8) {
-                if (!this.moveItemStackTo(itemStack2, 8, 44, true)) {
-                    return ItemStack.EMPTY;
+                if (stackInSource.getItem() instanceof BlockItem) {
+                    for (int i = 0; i < 8; i++) {
+                        if (this.byteSlotHandler.getStackInSlot(i).isEmpty()) {
+                            this.byteSlotHandler.setStackInSlot(i, stackInSource.copyWithCount(1));
+                            this.broadcastChanges();
+                            break;
+                        }
+                    }
                 }
-            }
-            // Index 8-43 represents player inventory space
-            else {
-                if (!(itemStack2.getItem() instanceof BlockItem) || !this.moveItemStackTo(itemStack2, 0, 8, false)) {
-                    return ItemStack.EMPTY;
-                }
-            }
-
-            if (itemStack2.isEmpty()) {
-                slot.set(ItemStack.EMPTY);
             } else {
-                slot.setChanged();
+                this.byteSlotHandler.setStackInSlot(index, ItemStack.EMPTY);
+                this.broadcastChanges();
             }
-            if (itemStack2.getCount() == itemStack.getCount()) {
-                return ItemStack.EMPTY;
-            }
-            slot.onTake(player, itemStack2);
         }
-        return itemStack;
+        return ItemStack.EMPTY;
     }
 
     public void handleServerToggle(ByteCopycatCorner corner) {
-        int actualSlotIndex = this.lockedWandSlotIndex + 35;
+        CreateBuildingWands.LOGGER.info("[WandDebug handleServerToggle] toggling the corner {} on the server", corner);
+        if (!this.wandItem.isEmpty()) {
+            CustomData.update(
+                    DataComponents.CUSTOM_DATA,
+                    this.wandItem,
+                    tag -> {
+                        int[] activeCorners = tag.getIntArray("active_corners");
+                        if (activeCorners.length != 8) {
+                            activeCorners = new int[] { 0, 0, 0, 0, 0, 0, 0, 0 };
+                        }
 
-        CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu] attempting to toggle the corner on the server");
+                        int index = corner.ordinal();
+                        activeCorners[index] = (activeCorners[index] == 1) ? 0 : 1;
 
-        if (actualSlotIndex >= 0 && actualSlotIndex < this.slots.size()) {
+                        tag.putIntArray("active_corners", activeCorners);
+                        CompoundTag materialData = tag.getCompound("material_data");
+                        CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
+                        cornerTag.putByte("enableCT", (byte) 0);
 
-            CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu] actualSlotIndex is within range yippee: {}", actualSlotIndex);
-            ItemStack wandStack = this.slots.get(actualSlotIndex).getItem();
-
-            if (!wandStack.isEmpty()) {
-                CustomData.update(
-                        DataComponents.CUSTOM_DATA,
-                        wandStack,
-                        tag -> {
-
-                            int[] activeCorners = tag.getIntArray("active_corners");
-                            if (activeCorners.length != 8) {
-                                activeCorners = new int[] { 0, 0, 0, 0, 0, 0, 0, 0 };
-                            }
-
-                            int index = corner.ordinal();
-                            activeCorners[index] = (activeCorners[index] == 1) ? 0 : 1;
-
-                            tag.putIntArray("active_corners", activeCorners);
-                            CompoundTag materialData = tag.getCompound("material_data");
-                            CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
-                            cornerTag.putByte("enableCT", (byte) 0);
-
-                            CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu] tag value is: {}", tag);
-                        });
-            }
-            this.broadcastChanges();
+                        CreateBuildingWands.LOGGER.info("[WandDebug handleServerToggle] tag value is: {}", tag);
+                    });
         }
 
+        CreateBuildingWands.LOGGER.info("[WandDebug handleServerToggle] the custom data inside the wand is {}", this.wandItem.get(DataComponents.CUSTOM_DATA));
+        this.broadcastChanges();
+        CreateBuildingWands.LOGGER.info("[WandDebug handleServerToggle] this.broadcastChanges() was just called, the wand should have updated");
     }
 
     @Override
@@ -148,8 +155,12 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         return true;
     }
 
-    public int getLockedWandSlotIndex() {
-        return this.lockedWandSlotIndex;
+    public InteractionHand getWandHand() {
+        return wandHand;
+    }
+
+    public ItemStack getWandItem() {
+        return wandItem;
     }
 
     public static MenuType<ByteConfigMenu> getTypeReference() {
@@ -161,4 +172,53 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         return ModMenuTypes.BYTE_CONFIG_MENU.get();
     }
 
+    public ByteConfigMenu(int pContainerId, Inventory pPlayerInventory, FriendlyByteBuf pExtraData) {
+        this(pContainerId, pPlayerInventory, deserializeHand(pExtraData));
+    }
+
+    private static InteractionHand deserializeHand(FriendlyByteBuf pExtraData) {
+        if (pExtraData != null) {
+            return pExtraData.readEnum(InteractionHand.class);
+        }
+        return InteractionHand.MAIN_HAND;
+    }
+
+    private void saveSlotMaterialToWand(ByteCopycatCorner corner, ItemStack materialStack) {
+
+        if (this.wandItem.isEmpty())
+            return;
+
+        CustomData.update(
+                DataComponents.CUSTOM_DATA,
+                this.wandItem,
+                tag -> {
+                    net.minecraft.nbt.CompoundTag materialData = tag.getCompound("material_data");
+                    net.minecraft.nbt.CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
+
+                    if (materialStack.isEmpty()) {
+                        // Reset to baseline if slot is cleared out
+                        net.minecraft.nbt.CompoundTag baseMat = new net.minecraft.nbt.CompoundTag();
+                        baseMat.putString("Name", "create:copycat_base");
+                        cornerTag.put("material", baseMat);
+                        cornerTag.put("consumedItem", new net.minecraft.nbt.CompoundTag());
+                    } else {
+                        // Write out the chosen block ID into the material key
+                        net.minecraft.nbt.CompoundTag matBlock = new net.minecraft.nbt.CompoundTag();
+                        String registryName = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                                .getKey(materialStack.getItem()).toString();
+                        matBlock.putString("Name", registryName);
+                        cornerTag.put("material", matBlock);
+
+                        // Populate consumedItem field matching Copycats full schema layout
+                        net.minecraft.nbt.CompoundTag consumed = new net.minecraft.nbt.CompoundTag();
+                        consumed.putInt("count", 1);
+                        consumed.putString("id", registryName);
+                        cornerTag.put("consumedItem", consumed);
+                    }
+
+                    materialData.put(corner.getNbtKey(), cornerTag);
+                    tag.put("material_data", materialData);
+                });
+        this.broadcastChanges();
+    }
 }

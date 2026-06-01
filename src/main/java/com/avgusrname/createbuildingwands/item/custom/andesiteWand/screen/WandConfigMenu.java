@@ -44,6 +44,60 @@ public class WandConfigMenu extends AbstractContainerMenu{
     public static final int INVENTORY_START_Y = 60;
     public static final int HOTBAR_START_Y = 118;
 
+    // this makes the menu n stuff
+    public WandConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
+        // calls the parent constructor to make a menu given this information
+        super(ModMenuTypes.WAND_CONFIG_MENU.get(), pContainerId);
+
+        // sets some important stuff passed through the parameters
+        this.wandHand = pHand;
+        this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
+        this.wandLevel = pPlayerInventory.player.level();
+
+        this.actualPlayerInventory = pPlayerInventory;
+        this.playerInventoryWrapper = new InvWrapper(pPlayerInventory);
+
+        // this will set the wand mode in the menu to be what it is from the data components, or set a default value of SINGLE if there is none (like when the wand is used for the first time)
+        WandMode currentMode = this.wandItem.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
+        // gets a numerical value for the mode selected. for example, if SINGLE is selected, and its the first mode, it'd return 0
+        this.initialModeIndex = currentMode.ordinal();
+
+        // the data for the block stored in the wand is fetched here and tells the menu what it is
+        Block regularBlock = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
+
+        // the block inside the wand, set to empty by default i guess
+        ItemStack storedStack = ItemStack.EMPTY;
+
+        // if there IS a stored block, it'll apply that to the slot: i.e. the block with stack of 1; could also be empty 
+        if (regularBlock != null) {
+            storedStack = new ItemStack(regularBlock.asItem());
+        }
+
+        // if the stack is not empty or invalid or whatever, set the stack to be the block there
+        if (!storedStack.isEmpty()) {
+            this.wandSlotHandler.setStackInSlot(0, storedStack.copyWithCount(1));
+        }
+
+        // add the slot to the menu
+        this.addSlot(new WandBlockSlot(wandSlotHandler, 0, WAND_SLOT_X, WAND_SLOT_Y));
+
+        Block copycatBlock = this.wandItem.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+        ItemStack copycatStoredStack = ItemStack.EMPTY;
+
+        if (copycatBlock != null) {
+            copycatStoredStack = new ItemStack(copycatBlock.asItem());
+        }
+
+        if (!copycatStoredStack.isEmpty()) {
+            this.copycatSlotHandler.setStackInSlot(0, copycatStoredStack.copyWithCount(1));
+        }
+
+        this.addSlot(new WandBlockSlot(copycatSlotHandler, 0, COPYCAT_SLOT_X, COPYCAT_SLOT_Y));
+
+        // this just draws the inventory on the screen below the wand menu. will need to revise this eventually
+        layoutPlayerInventory(pPlayerInventory);
+    }
+
     private final ItemStackHandler wandSlotHandler = new ItemStackHandler(1) {
         @Override
         protected void onContentsChanged(int slot) {
@@ -151,59 +205,6 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
     };
 
-    // this makes the menu n stuff
-    public WandConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
-        // calls the parent constructor to make a menu given this information
-        super(ModMenuTypes.WAND_CONFIG_MENU.get(), pContainerId);
-
-        // sets some important stuff passed through the parameters
-        this.wandHand = pHand;
-        this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
-        this.wandLevel = pPlayerInventory.player.level();
-
-        this.actualPlayerInventory = pPlayerInventory;
-        this.playerInventoryWrapper = new InvWrapper(pPlayerInventory);
-
-        // this will set the wand mode in the menu to be what it is from the data components, or set a default value of SINGLE if there is none (like when the wand is used for the first time)
-        WandMode currentMode = this.wandItem.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
-        // gets a numerical value for the mode selected. for example, if SINGLE is selected, and its the first mode, it'd return 0
-        this.initialModeIndex = currentMode.ordinal();
-
-        // the data for the block stored in the wand is fetched here and tells the menu what it is
-        Block regularBlock = this.wandItem.get(ModDataComponents.WAND_BLOCK.get());
-
-        // the block inside the wand, set to empty by default i guess
-        ItemStack storedStack = ItemStack.EMPTY;
-
-        // if there IS a stored block, it'll apply that to the slot: i.e. the block with stack of 1; could also be empty 
-        if (regularBlock != null) {
-            storedStack = new ItemStack(regularBlock.asItem());
-        }
-
-        // if the stack is not empty or invalid or whatever, set the stack to be the block there
-        if (!storedStack.isEmpty()) {
-            this.wandSlotHandler.setStackInSlot(0, storedStack.copyWithCount(1));
-        }
-
-        // add the slot to the menu
-        this.addSlot(new WandBlockSlot(wandSlotHandler, 0, WAND_SLOT_X, WAND_SLOT_Y));
-
-        Block copycatBlock = this.wandItem.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
-        ItemStack copycatStoredStack = ItemStack.EMPTY;
-
-        if (copycatBlock != null) {
-            copycatStoredStack = new ItemStack(copycatBlock.asItem());
-        }
-
-        if (!copycatStoredStack.isEmpty()) {
-            this.copycatSlotHandler.setStackInSlot(0, copycatStoredStack.copyWithCount(1));
-        }
-
-        this.addSlot(new WandBlockSlot(copycatSlotHandler, 0, COPYCAT_SLOT_X, COPYCAT_SLOT_Y));
-
-        // this just draws the inventory on the screen below the wand menu. will need to revise this eventually
-        layoutPlayerInventory(pPlayerInventory);
-    }
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
@@ -291,11 +292,17 @@ public class WandConfigMenu extends AbstractContainerMenu{
     }
 
 
-    public int getInitialModeIndex() { return initialModeIndex; }
+    public int getInitialModeIndex() {
+        return initialModeIndex;
+    }
 
-    public InteractionHand getWandHand() { return wandHand; }
+    public InteractionHand getWandHand() {
+        return wandHand;
+    }
 
-    public ItemStack getWandItem() { return wandItem; }
+    public ItemStack getWandItem() {
+        return wandItem;
+    }
 
     @Override
     public boolean stillValid(Player pPlayer) {

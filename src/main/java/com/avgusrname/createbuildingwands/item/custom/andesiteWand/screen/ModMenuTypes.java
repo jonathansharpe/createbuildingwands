@@ -20,11 +20,7 @@ public class ModMenuTypes {
         registerMenuType("wand_config_menu", WandConfigMenu::new);
 
     public static final DeferredHolder<MenuType<?>, MenuType<ByteConfigMenu>> BYTE_CONFIG_MENU = 
-        MENUS.register("byte_config_menu", () -> IMenuTypeExtension.create((containerId, playerInventory, buf) -> {
-            int lockedSlot = buf.readInt();
-
-            return new ByteConfigMenu(containerId, playerInventory, new ItemStackHandler(8), lockedSlot);
-        }));
+        registerMenuType("byte_config_menu", ByteConfigMenu::new);
     
     private static <T extends AbstractContainerMenu>DeferredHolder<MenuType<?>, MenuType<T>> registerMenuType(String name, IContainerFactory<T> factory) {
         return MENUS.register(name, () -> IMenuTypeExtension.create(factory));

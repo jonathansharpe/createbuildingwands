@@ -9,6 +9,7 @@ import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigMenu;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -67,21 +68,13 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
                 }
             }
             case OPEN_BYTE_CONFIG_MENU -> {
+                if (player.containerMenu instanceof ByteConfigMenu byteMenu) {
+                    ByteCopycatCorner corner = ByteCopycatCorner.values()[payload.value];
 
-                int dynamicLockedSlot = -1;
-                for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-                    if (player.getInventory().getItem(i) == wand) {
-                        dynamicLockedSlot = i;
-                        break;
-                    }
-                }
-                if (dynamicLockedSlot == -1) {
-                    dynamicLockedSlot = player.getInventory().selected;
-                }
-
-                final int finalLockedSlot = dynamicLockedSlot;
-
-                if (player instanceof ServerPlayer serverPlayer) {
+                    CreateBuildingWands.LOGGER.info("[WandPacket handleOnServer] value of corner is: {}", corner);
+                    CreateBuildingWands.LOGGER.info("[WandPacket handleOnServer] current active server menu is byteconfigmenu");
+                    byteMenu.handleServerToggle(corner);
+                } else if (player instanceof ServerPlayer serverPlayer) {
                     serverPlayer.openMenu(new MenuProvider() {
                         @Override
                         public Component getDisplayName() {
@@ -90,14 +83,12 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
 
                         @Override
                         public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player playerEntity) {
-                            return new ByteConfigMenu(containerId, playerInventory, new ItemStackHandler(8), finalLockedSlot);
+                            return new ByteConfigMenu(containerId, playerInventory, payload.hand());
                         }
                     }, buf -> {
-                        buf.writeInt(finalLockedSlot);
+                        buf.writeEnum(payload.hand());
                     });
                 }
-                CreateBuildingWands.LOGGER.info("[WandDebug WandPacket] Sent extended openMneu command to client with slot: {}", finalLockedSlot);
-
             }
         }
     }
