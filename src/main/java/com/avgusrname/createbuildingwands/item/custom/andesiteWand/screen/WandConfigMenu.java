@@ -101,7 +101,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
     private final ItemStackHandler wandSlotHandler = new ItemStackHandler(1) {
         @Override
         protected void onContentsChanged(int slot) {
-            ItemStack storedStack = getStackInSlot(0);
+            ItemStack storedStack = getStackInSlot(slot);
 
             if (storedStack.isEmpty()) {
                 wandItem.remove(ModDataComponents.WAND_BLOCK.get());

@@ -44,27 +44,22 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 			int absoluteBtnX = this.leftPos + coords[0];
 			int absoluteBtnY = this.topPos + coords[1];
 		
-			CreateBuildingWands.LOGGER.info("[WandDebug init] btn coords: x: {}, y: {}", absoluteBtnX, absoluteBtnY);
+			// CreateBuildingWands.LOGGER.info("[WandDebug init] btn coords: x: {}, y: {}", absoluteBtnX, absoluteBtnY);
 
 			final int cornerIndex = i;
 			ByteCopycatCorner tempCorner = ByteCopycatCorner.values()[cornerIndex];
 			String initialLabel = formatCornerName(tempCorner.getNbtKey()) + ": OFF";
 
-			CreateBuildingWands.LOGGER.info("initialLabel: {}", initialLabel);
+			// CreateBuildingWands.LOGGER.info("initialLabel: {}", initialLabel);
 
 			this.cornerButtons[i] = Button.builder(Component.literal(initialLabel), button -> {
 				PacketDistributor.sendToServer(new WandPacket(WandPacket.WandCommand.OPEN_BYTE_CONFIG_MENU, cornerIndex, Optional.empty(), this.menu.getWandHand()));
-				CreateBuildingWands.LOGGER.info("[WandDebug init] button has been clicked");
+				// CreateBuildingWands.LOGGER.info("[WandDebug init] button has been clicked");
 			}).bounds(absoluteBtnX, absoluteBtnY, ByteConfigMenu.BTN_WIDTH, ByteConfigMenu.BTN_HEIGHT).build();
 
 			this.addRenderableWidget(this.cornerButtons[i]);
-
-			// this.addRenderableWidget(Button.builder(Component.literal(initialLabel), button -> {
-			// 	PacketDistributor.sendToServer(new WandPacket(WandPacket.WandCommand.OPEN_BYTE_CONFIG_MENU, cornerIndex, Optional.empty(), this.menu.getWandHand()));
-			// 	CreateBuildingWands.LOGGER.info("[WandDebug init] button has been clicked");
-			// }).bounds(absoluteBtnX, absoluteBtnY, ByteConfigMenu.BTN_WIDTH, ByteConfigMenu.BTN_HEIGHT).build());
 		}
-		CreateBuildingWands.LOGGER.info("[WandDebug init] about to update button messages after the for loop");
+		// CreateBuildingWands.LOGGER.info("[WandDebug init] about to update button messages after the for loop");
 		this.updateButtonMessages();
 	}
 
@@ -83,7 +78,7 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 	}
 
 	private void updateButtonMessages() {
-		// any log messages in this function will be called a LOT, like once every second, so log carefully
+		// INFO any log messages in this function will be called a LOT, like once every second, so log carefully
 		// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] updateButtonMessages called");
 
 		if (this.minecraft.player == null) return;
@@ -110,31 +105,6 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 				btn.setMessage(Component.literal(formatCornerName(corner.getNbtKey()) + stateSuffix));
 			}
 		}
-
-		// if (wandStack.has(DataComponents.CUSTOM_DATA)) {
-		// 	CompoundTag tag = wandStack.get(DataComponents.CUSTOM_DATA).copyTag();
-		// 	// CreateBuildingWands.LOGGER.info("[WandDebug updateButtonMessages] value of tag is: {}", tag);
-		// 	if (tag.contains("active_corners")) {
-		// 		activeCorners = tag.getIntArray("active_corners");
-		// 	}
-		// } else {
-		// 	// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] wandStack does not have the correct customdata");
-		// }
-
-		// // CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] value of activeCorners is: {}", activeCorners);
-
-		// for (var widget : this.renderables) {
-		// 	if (widget instanceof Button button && buttonIndex < 8) {
-		// 		ByteCopycatCorner corner = ByteCopycatCorner.values()[buttonIndex];
-
-		// 		boolean isActivated = buttonIndex < activeCorners.length && activeCorners[buttonIndex] == 1;
-
-		// 		String cleanName = formatCornerName(corner.getNbtKey());
-		// 		button.setMessage(Component.literal(cleanName + (isActivated ? ": ON" : ": OFF")));
-		// 		// CreateBuildingWands.LOGGER.info("[WandDebug updateButtonMessages] value of setMessage is: {}", button.getMessage());
-		// 		buttonIndex++;
-		// 	}
-		// }
 	}
 
 	// @Override

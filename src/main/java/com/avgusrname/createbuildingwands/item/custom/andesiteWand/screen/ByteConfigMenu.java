@@ -1,11 +1,16 @@
 package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
 
+import net.minecraft.Util;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -15,6 +20,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.minecraft.world.item.component.CustomData;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
@@ -22,7 +28,7 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 public class ByteConfigMenu extends AbstractContainerMenu {
     private final InteractionHand wandHand;
     private final ItemStack wandItem;
-    private final ItemStackHandler byteSlotHandler;
+    // private final ItemStackHandler byteSlotHandler;
     private final Player player;
 
     public static final int BTN_WIDTH = 95;
@@ -39,7 +45,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         this.wandHand = pHand;
         this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
         this.player = pPlayerInventory.player;
-        this.byteSlotHandler = new ItemStackHandler(8);
+        // this.byteSlotHandler = new ItemStackHandler(8);
 
         for (int i = 0; i < 8; i++) {
             int[] coords = getComponentCoordinates(i);
@@ -62,6 +68,49 @@ public class ByteConfigMenu extends AbstractContainerMenu {
             this.addSlot(new Slot(pPlayerInventory, col, 8 + col * 18, hotbarTopY));
         }
     }
+
+    private final ItemStackHandler byteSlotHandler = new ItemStackHandler(8) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            ItemStack storedStack = getStackInSlot(slot);
+
+            ByteCopycatCorner corner = ByteCopycatCorner.values()[slot];
+
+            // TODO logic to handle when either the contents of the slot are empty or contain an item
+
+            ByteConfigMenu.this.broadcastChanges();
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            CreateBuildingWands.LOGGER.info("[WandDebug byteSlotHandler insertItem] about to insert an item");
+
+            if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) {
+                return ItemStack.EMPTY;
+            } else if (!this.isItemValid(slot, stack)) {
+                return stack;
+            } else {
+                this.validateSlotIndex(slot);
+                if (!simulate) {
+                    this.stacks.set(slot, stack.copyWithCount(1));
+                }
+                this.onContentsChanged(slot);
+                return stack.copyWithCount(1);
+            }
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            CreateBuildingWands.LOGGER.info("[WandDebug byteSlotHandler insertItem] about to remove an item");
+
+            if (!this.getStackInSlot(slot).isEmpty()) {
+                if (!simulate) {
+                    this.setStackInSlot(slot, ItemStack.EMPTY);
+                }
+            }
+            return ItemStack.EMPTY;
+        }
+    };
 
     public static int[] getComponentCoordinates(int index) {
         int row = index % 4;
@@ -88,8 +137,10 @@ public class ByteConfigMenu extends AbstractContainerMenu {
                 targetSlot.set(ItemStack.EMPTY);
                 saveSlotMaterialToWand(corner, ItemStack.EMPTY);
             } else {
+                CreateBuildingWands.LOGGER.info("[WandDebug clicked] setting the ghostClone variable to {}", carriedStack);
                 ItemStack ghostClone = carriedStack.copyWithCount(1);
                 targetSlot.set(ghostClone);
+                CreateBuildingWands.LOGGER.info("[WandDebug clicked] value of targetSlot is: {}", targetSlot.getItem());
                 saveSlotMaterialToWand(corner, ghostClone);
             }
             return;
@@ -185,40 +236,63 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
     private void saveSlotMaterialToWand(ByteCopycatCorner corner, ItemStack materialStack) {
 
-        if (this.wandItem.isEmpty())
-            return;
+        CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] about to update the material slots inside the byte config menu");
+        if (!this.wandItem.isEmpty()) {
+            CustomData.update(DataComponents.CUSTOM_DATA, this.wandItem, tag -> {
+                CompoundTag materialData = tag.getCompound("material_data");
+                CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
 
-        CustomData.update(
-                DataComponents.CUSTOM_DATA,
-                this.wandItem,
-                tag -> {
-                    net.minecraft.nbt.CompoundTag materialData = tag.getCompound("material_data");
-                    net.minecraft.nbt.CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
+                if (materialStack.isEmpty()) {
+                    CompoundTag baseMat = new CompoundTag();
+                    baseMat.putString("Name", "create:copycat_base");
+                    cornerTag.put("material", baseMat);
+                    cornerTag.put("consumedItem", new CompoundTag());
 
-                    if (materialStack.isEmpty()) {
-                        // Reset to baseline if slot is cleared out
-                        net.minecraft.nbt.CompoundTag baseMat = new net.minecraft.nbt.CompoundTag();
-                        baseMat.putString("Name", "create:copycat_base");
-                        cornerTag.put("material", baseMat);
-                        cornerTag.put("consumedItem", new net.minecraft.nbt.CompoundTag());
-                    } else {
-                        // Write out the chosen block ID into the material key
-                        net.minecraft.nbt.CompoundTag matBlock = new net.minecraft.nbt.CompoundTag();
-                        String registryName = net.minecraft.core.registries.BuiltInRegistries.ITEM
-                                .getKey(materialStack.getItem()).toString();
-                        matBlock.putString("Name", registryName);
-                        cornerTag.put("material", matBlock);
+                    cornerTag.putByte("enableCT", (byte) 1);
+                    cornerTag.put("consumedItem", new CompoundTag());
+                } else {
+                    CompoundTag matBlock = new CompoundTag();
+                    String itemRegistryName = BuiltInRegistries.ITEM.getKey(materialStack.getItem()).toString();
 
-                        // Populate consumedItem field matching Copycats full schema layout
-                        net.minecraft.nbt.CompoundTag consumed = new net.minecraft.nbt.CompoundTag();
-                        consumed.putInt("count", 1);
-                        consumed.putString("id", registryName);
-                        cornerTag.put("consumedItem", consumed);
+                    String blockRegistryName = itemRegistryName;
+                    if (materialStack.getItem() instanceof BlockItem blockItem) {
+                        blockRegistryName = BuiltInRegistries.BLOCK.getKey(blockItem.getBlock()).toString();
                     }
 
-                    materialData.put(corner.getNbtKey(), cornerTag);
-                    tag.put("material_data", materialData);
-                });
+                    matBlock.putString("Name", blockRegistryName);
+
+                    if (materialStack.has(DataComponents.BLOCK_STATE)) {
+                        CompoundTag propertiesTag = new CompoundTag();
+                        BlockItemStateProperties stateProperties = materialStack.get(DataComponents.BLOCK_STATE);
+
+                        if (stateProperties != null) {
+                            stateProperties.properties().forEach((property, value) -> {
+                                propertiesTag.putString(property, value);
+                            });
+                        }
+                        matBlock.put("Properties", propertiesTag);
+                    }
+
+                    cornerTag.put("material", matBlock);
+
+                    cornerTag.putByte("enableCT", (byte) 1);
+
+                    CompoundTag consumed = new CompoundTag();
+                    consumed.putInt("count", 1);
+                    consumed.putString("id", itemRegistryName);
+                    cornerTag.put("consumedItem", consumed);
+                    // TODO currently consumes too many items; should only do 1 max per block
+                    // TODO byte slots do not display current material
+                    // TODO shift clicking does not work
+                }
+
+                materialData.put(corner.getNbtKey(), cornerTag);
+                tag.put("material_data", materialData);
+
+                CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] tag value is: {}", tag);
+            });
+        }
+
         this.broadcastChanges();
     }
 }
