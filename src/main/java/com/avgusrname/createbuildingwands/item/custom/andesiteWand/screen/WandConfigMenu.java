@@ -251,7 +251,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
         else if (slotId == 1) {
             // gets the copycat slot
-            Slot copycatSlot = this.slots.get(1);
+            Slot copycatSlot = this.slots.get(slotId);
             ItemStack cursorStack = player.containerMenu.getCarried();
 
             System.out.println("    -> Target is COPYCAT SLOT (ID 1)");
