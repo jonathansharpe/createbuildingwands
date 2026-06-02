@@ -20,9 +20,12 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
@@ -71,6 +74,37 @@ public class ByteConfigMenu extends AbstractContainerMenu {
                 }
             }
 
+            CompoundTag materialData = rootTag.getCompound("material_data");
+            for (ByteCopycatCorner corner : ByteCopycatCorner.values()) {
+                int slotIndex = corner.ordinal();
+
+                CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
+
+                ItemStack setStack = ItemStack.EMPTY;
+
+                if (cornerTag.contains("material", Tag.TAG_COMPOUND)) {
+                    CompoundTag materialCompound = cornerTag.getCompound("material");
+                    String blockIdStr = materialCompound.getString("Name");
+
+                    if (!blockIdStr.isEmpty() && !blockIdStr.equals("create:copycat_base")) {
+                        ResourceLocation resourceLocation = ResourceLocation.parse(blockIdStr);
+
+                        Block vanillaBlock = BuiltInRegistries.BLOCK.get(resourceLocation);
+
+                        Item itemFromBlock = vanillaBlock.asItem();
+
+                        if (itemFromBlock != Items.AIR) {
+                            setStack = new ItemStack(itemFromBlock, 1);
+                        }
+                    }
+                }
+
+                byteSlotHandler.setStackInSlot(slotIndex, setStack);
+                // get the materialData for corner
+                // get the itemStack for that materialData
+                // set stack in slot for that material
+            }
+
             CustomData.update(
                 DataComponents.CUSTOM_DATA,
                 this.wandItem,
@@ -99,10 +133,13 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     private final ItemStackHandler byteSlotHandler = new ItemStackHandler(8) {
         @Override
         protected void onContentsChanged(int slot) {
+            // get the item of whatever is stored in the slot
             ItemStack storedStack = getStackInSlot(slot);
 
+            // get the corner based on the slot given
             ByteCopycatCorner corner = ByteCopycatCorner.values()[slot];
 
+            // save the new material to that corner
             ByteConfigMenu.this.saveSlotMaterialToWand(corner, storedStack);
 
             CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu onContentsChanged] contents have been changed, slot is {}", slot);
@@ -155,30 +192,52 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        // checking to make sure slot is in range
         if (slotId >= 0 && slotId < 8) {
 
+            // get the slot
             Slot targetSlot = this.slots.get(slotId);
+            // get the stack that the player is carrying
             ItemStack carriedStack = player.containerMenu.getCarried();
+            // get the corner for the respective slot
             ByteCopycatCorner corner = ByteCopycatCorner.values()[slotId];
 
-            if (carriedStack.isEmpty()) {
-                targetSlot.set(ItemStack.EMPTY);
-                saveSlotMaterialToWand(corner, ItemStack.EMPTY);
-            } else {
-                ItemStack ghostClone = carriedStack.copyWithCount(1);
-                targetSlot.set(ghostClone);
-                saveSlotMaterialToWand(corner, ghostClone);
+            // if the player is holding something, AND its a blockitem
+            if (!carriedStack.isEmpty() && carriedStack.getItem() instanceof BlockItem) {
+                // if its any of these click attempts, dont do it
+                if (clickType == ClickType.THROW || clickType == ClickType.CLONE || clickType == ClickType.SWAP) {
+                    CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu clicked] incorrect click type, rejecting");
+                    super.clicked(slotId, button, clickType, player);
+                    return;
+                }
+                // use insertItem to insert the item
+                ItemStack configStack = byteSlotHandler.insertItem(slotId, carriedStack, false);
+                targetSlot.setChanged();
+
+                CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu clicked] slot now contains: {}", configStack.getHoverName().getString());
+                return;
+            } else if (!targetSlot.getItem().isEmpty()) {
+                byteSlotHandler.extractItem(slotId, 1, false);
+                targetSlot.setChanged();
+                return;
             }
-            return;
         }
         super.clicked(slotId, button, clickType, player);
     }
 
+    // TODO fix the below method
+
+    /**
+     * what happens when a player shift clicks an item
+     * @param player
+     * @param index
+     * @return
+     */
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
         if (index >= 8) {
             Slot sourceSlot = this.slots.get(index);
-            if (sourceSlot != null && sourceSlot.hasItem()) {
+            if (sourceSlot.hasItem()) {
                 ItemStack stackInSource = sourceSlot.getItem();
 
                 if (stackInSource.getItem() instanceof BlockItem) {
@@ -260,53 +319,6 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         return InteractionHand.MAIN_HAND;
     }
 
-    private void logWandData() {
-
-        if (this.wandItem.has(DataComponents.CUSTOM_DATA)) {
-
-            CompoundTag rootTag = this.wandItem.get(DataComponents.CUSTOM_DATA).copyTag();
-            CompoundTag tempMaterialData = rootTag.getCompound("material_data");
-
-            // Grab the active array safely (fallback to empty if not initialized)
-            int[] activeCorners = rootTag.getIntArray("active_corners");
-            if (activeCorners.length != 8) {
-                activeCorners = new int[] { 0, 0, 0, 0, 0, 0, 0, 0 };
-            }
-
-            CreateBuildingWands.LOGGER.info("=================== WAND COMPONENT SNAPSHOT ===================");
-
-            for (int i = 0; i < 8; i++) {
-                ByteCopycatCorner tempCorner = ByteCopycatCorner.values()[i];
-                String cornerKey = tempCorner.getNbtKey();
-
-                // Check toggle state from the bit-array
-                boolean isToggledOn = activeCorners[i] == 1;
-                String toggleStatus = isToggledOn ? "[ENABLED]" : "[DISABLED]";
-
-                // Read specific material payload for this corner
-                if (tempMaterialData.contains(cornerKey)) {
-                    CompoundTag cornerTag = tempMaterialData.getCompound(cornerKey);
-                    CompoundTag material = cornerTag.getCompound("material");
-                    String blockName = material.contains("Name") ? material.getString("Name") : "NONE";
-
-                    // Check if there are block state properties applied (like facing, half, etc.)
-                    String propertiesStr = "";
-                    if (material.contains("Properties")) {
-                        propertiesStr = " Prms: " + material.getCompound("Properties").toString();
-                    }
-
-                    CreateBuildingWands.LOGGER.info(String.format("-> Corner %d: %-16s %-10s | Block: %-32s%s",
-                            i, cornerKey, toggleStatus, blockName, propertiesStr));
-                } else {
-                    // Missing entirely from material_data compound map
-                    CreateBuildingWands.LOGGER.info(String.format("-> Corner %d: %-16s %-10s | Block: MISSING_TAG_DATA",
-                            i, cornerKey, toggleStatus));
-                }
-            }
-            CreateBuildingWands.LOGGER.info("===============================================================");
-        }
-    }
-
     /**
      * this method will apply a material to the given corner of the copycat byte
      * @param corner the corner to modify the data of
@@ -340,8 +352,6 @@ public class ByteConfigMenu extends AbstractContainerMenu {
          */
         CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] about to update the material slots inside the byte config menu");
 
-        // logWandData();
-
         if (!this.wandItem.isEmpty()) {
             CustomData.update(DataComponents.CUSTOM_DATA, this.wandItem, tag -> {
                 CompoundTag rootTag = this.wandItem.get(DataComponents.CUSTOM_DATA).copyTag();
@@ -369,7 +379,6 @@ public class ByteConfigMenu extends AbstractContainerMenu {
                     // the two below things should do the thing
                     tag.put("material_data", materialData);
                     CreateBuildingWands.LOGGER.info("[saveSlotMaterialToWand] here's the tag: {}", tag);
-                    // logWandData();
                 } else if (materialStack.getItem() instanceof BlockItem blockItem) {
                     // creating new corner tag to put into the wand data
                     CompoundTag newCornerTag = new CompoundTag();
@@ -410,7 +419,6 @@ public class ByteConfigMenu extends AbstractContainerMenu {
                     CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] test drive of inserting the slot, here is the entire tag before modifying: {}", materialData);
                     // these two should do it
                     tag.put("material_data", materialData);
-                    // logWandData();
                     // TODO items still do not persist visually in wand, even if the materials do
                     // TODO materials no longer apply when blocks are placed
                 }
@@ -418,6 +426,5 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         }
 
         this.broadcastChanges();
-        logWandData();
     }
 }

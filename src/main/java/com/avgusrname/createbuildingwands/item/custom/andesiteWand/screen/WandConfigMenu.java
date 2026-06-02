@@ -209,44 +209,36 @@ public class WandConfigMenu extends AbstractContainerMenu{
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
         // debugging statements
-        System.out.println("--- CLICK START ---");
-        System.out.println("Clicked Slot ID: " + slotId);
-        System.out.println("Clicked Cursor Stack: " + player.containerMenu.getCarried());
 
         if (slotId == 0) {
             // gets the wand slot
             Slot wandSlot = this.slots.get(slotId);
             // gets what the player is carrying
-            ItemStack cursorStack = player.containerMenu.getCarried();
+            ItemStack carriedStack = player.containerMenu.getCarried();
 
             System.out.println("    -> Target is WAND SLOT (ID 0)");
 
-            if (!cursorStack.isEmpty() && cursorStack.getItem() instanceof BlockItem) {
+            if (!carriedStack.isEmpty() && carriedStack.getItem() instanceof BlockItem) {
                 if (clickType == ClickType.THROW || clickType == ClickType.CLONE || clickType == ClickType.SWAP) {
                     System.out.println("    -> Insertion attempt rejected for specified click type (" + clickType + "). Delegating.");
                     super.clicked(slotId, button, clickType, player);
                     return;
                 }
-                ItemStack configStack = wandSlotHandler.insertItem(0, cursorStack, false);
+                ItemStack configStack = wandSlotHandler.insertItem(slotId, carriedStack, false);
                 wandSlot.setChanged();
 
                 System.out.println("    -> slot now contains: " + configStack.getHoverName().getString());
-                System.out.println("--- CLICK END (MANUAL INSERT) ---");
                 return;
             }
-            // due to the above if statement we already know that cursorStack is empty, so we can just extract the item from the slot
+            // due to the above if statement we already know that carriedStack is empty, so we can just extract the item from the slot
             else if (!wandSlot.getItem().isEmpty()) {
                 // TODO THIS DOESN'T WORK FOR SOME REASON
-                wandSlotHandler.extractItem(0, 1, false);
+                wandSlotHandler.extractItem(slotId, 1, false);
                 wandSlot.setChanged();
 
-                System.out.println("    -> MANUAL EXTRACTION/CLEAR COMPLETE.");
-                System.out.println("--- CLICK END (MANUAL EXTRACT) ---");
                 return;
             }
-            System.out.println("    -> UNHANDLED WAND SLOT CLICK. Delegating.");
             super.clicked(slotId, button, clickType, player);
-            System.out.println("--- CLICK END (DELEGATE) ---");
             return;
         }
         else if (slotId == 1) {
@@ -258,7 +250,6 @@ public class WandConfigMenu extends AbstractContainerMenu{
 
             if (!cursorStack.isEmpty() && (cursorStack.getItem() instanceof BlockItem)) {
                 if (clickType == ClickType.THROW || clickType == ClickType.CLONE || clickType == ClickType.SWAP) {
-                    System.out.println("    -> Insertion attempt rejected for specified click type (" + clickType + "). Delegating.");
                     super.clicked(slotId, button, clickType, player);
                     return;
                 }
@@ -266,28 +257,20 @@ public class WandConfigMenu extends AbstractContainerMenu{
                     ItemStack remainingStack = copycatSlotHandler.insertItem(0, cursorStack, false);
                     copycatSlot.setChanged();
                     
-                    System.out.println("    -> COPYCAT MANUAL INSERTION COMPLETE. Remaining on cursor: " + remainingStack.getCount());
-                    System.out.println("--- CLICK END (COPYCAT MANUAL INSERT) ---");
                     return;
                 }
             }
             else if (cursorStack.isEmpty() && (clickType == ClickType.PICKUP || clickType == ClickType.QUICK_MOVE) && !copycatSlot.getItem().isEmpty()) {
                 copycatSlotHandler.extractItem(0, 1, false);
                 copycatSlot.setChanged();
-
-                System.out.println("    -> COPYCAT MANUAL EXTRACTION/CLEAR COMPLETE.");
-                System.out.println("--- CLICK END (COPYCAT MANUAL EXTRACT) ---");
                 return;
             }
             else {
-                System.out.println("    -> UNHANDLED COPYCAT SLOT CLICK. Delegating.");
                 super.clicked(slotId, button, clickType, player);
-                System.out.println("--- CLICK END (COPYCAT DELEGATE) ---");
                 return;
             }
         }
         super.clicked(slotId, button, clickType, player);
-        System.out.println("--- CLICK END (DEFAULT) ---");
 
     }
 
