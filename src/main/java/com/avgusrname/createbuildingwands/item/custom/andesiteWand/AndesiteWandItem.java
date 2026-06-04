@@ -1,5 +1,8 @@
 package com.avgusrname.createbuildingwands.item.custom.andesiteWand;
 
+import com.simibubi.create.AllBlocks;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -234,31 +237,20 @@ public class AndesiteWandItem extends Item {
         ItemStack materialStack = (overrideMaterial != null) ? new ItemStack(overrideMaterial.asItem()) : ItemStack.EMPTY;
         CreateBuildingWands.LOGGER.info("materialStack is: {}", materialStack);
 
-        boolean successfulPlacement = false;
-
-        switch (currentMode) {
-            case SINGLE:
+        boolean successfulPlacement = switch (currentMode) {
+            case SINGLE -> {
                 BlockPos targetPos = clickedPos.relative(pContext.getClickedFace());
-                successfulPlacement = this.placeBlock(level, serverPlayer, targetPos, blockToPlace, materialStack, isCopycatPlacement, clickedFace, placeContext);
-                break;
-            case LINE:
-                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
-                break;
-            case PLANE:
-                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
-                break;
-            case CUBE:
-                successfulPlacement = placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
-                break;
-            case SPHERE:
-                successfulPlacement = false;
-                break;
-
-        }
+                yield this.placeBlock(level, serverPlayer, targetPos, blockToPlace, materialStack, isCopycatPlacement, clickedFace, placeContext);
+            }
+            // the below cases all have the same result because placeMultiple handles the mode
+            case LINE, PLANE, CUBE -> placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
+            case SPHERE -> false;
+        };
 
         return successfulPlacement ? InteractionResult.CONSUME : InteractionResult.FAIL;
     }
 
+    // actually this doesn't receive consumedItem in the first place
     private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
         CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
         if (!level.getBlockState(pos).canBeReplaced())
@@ -266,8 +258,6 @@ public class AndesiteWandItem extends Item {
 
         BlockPlaceContext localContext = BlockPlaceContext.at(originalContext, pos, clickedFace);
         BlockState stateToPlace = getOrientedBlockState(block, localContext);
-        if (stateToPlace == null)
-            stateToPlace = block.defaultBlockState();
 
         if (isCopycat) {
             CreateBuildingWands.LOGGER
@@ -281,7 +271,6 @@ public class AndesiteWandItem extends Item {
 
                 if (wandStack.has(DataComponents.CUSTOM_DATA)) {
                     CompoundTag wandTag = wandStack.get(DataComponents.CUSTOM_DATA).copyTag();
-
 
                     int[] activeCorners = wandTag.contains("active_corners") ? wandTag.getIntArray("active_corners")
                             : new int[] { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -297,18 +286,20 @@ public class AndesiteWandItem extends Item {
                         .setValue(CopycatByteBlock.TOP_SE,      activeCorners[7] == 1);
 
                     CompoundTag filteredMaterialData = new CompoundTag();
+                    HolderLookup.Provider registries = level.registryAccess();
 
-                    if (wandTag.contains("material_data")) {
+                    if (wandTag.contains("material_data", Tag.TAG_COMPOUND)) {
                         filteredMaterialData = wandTag.getCompound("material_data").copy();
                     } else {
                         for (ByteCopycatCorner c : ByteCopycatCorner.values()) {
                             CompoundTag cornerSetup = new CompoundTag();
-                            cornerSetup.putByte("enableCT", (byte) 0);
-
-                            CompoundTag baseMat = new CompoundTag();
-                            baseMat.putString("Name", "create:copycat_base");
-                            cornerSetup.put("consumedItem", new CompoundTag());
-
+                            ICopycatBlockEntity.write(
+                                    cornerSetup,
+                                    ItemStack.EMPTY,
+                                    AllBlocks.COPYCAT_BASE.getDefaultState(),
+                                    registries,
+                                    false
+                            );
                             filteredMaterialData.put(c.getNbtKey(), cornerSetup);
                         }
                     }
@@ -326,6 +317,7 @@ public class AndesiteWandItem extends Item {
                 if (level.setBlock(pos, finalStateToPlace, 3)) {
                     BlockEntity be = level.getBlockEntity(pos);
                     if (be != null && !preparedBlockEntityTag.isEmpty()) {
+                        // TODO the preparedBlockEntityTag does not get saved correctly here, so i must be preparing it wrong
                         CompoundTag completeMetadata = be.saveWithFullMetadata(level.registryAccess());
                         completeMetadata.merge(preparedBlockEntityTag);
 
@@ -340,8 +332,7 @@ public class AndesiteWandItem extends Item {
                             BlockState materialState = actualBlock.defaultBlockState();
                             
                             if (!materialState.isAir()) {
-                                CreateBuildingWands.LOGGER.info("[WandDebug placeBlock] Applying valid texture state: {}",
-                                        materialState);
+                                CreateBuildingWands.LOGGER.info("[WandDebug placeBlock] Applying valid texture state: {}", materialState);
                                 applyCopycatMaterial(level, pos, materialState, material, property);
                             }
                         } else {
@@ -386,7 +377,7 @@ public class AndesiteWandItem extends Item {
      * @return will return a bool if the placement succeeded or failed. will need to utilize this more to better identify problems
      */
     private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
-        // TODO implement a randomizer functionality, using the create list filter
+        // TODO implement a randomizer functionality, using the create shuffle filter mod
         // TODO fix this method so it just uses performPlacement but many times, should inherently fix the problem of the copycat texture not applying
         if (level.isClientSide) return false;
 

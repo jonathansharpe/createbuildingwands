@@ -1,7 +1,13 @@
 package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.simibubi.create.AllBlocks;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class ByteCornerData {
@@ -23,13 +29,27 @@ public class ByteCornerData {
 
     private BlockState material;
     private boolean enableCT;
-    private Item consumedItem;
+    private Item item;
 
     public ByteCornerData() {
-        this.material = null;
+        this.material = AllBlocks.COPYCAT_BASE.getDefaultState();
         this.enableCT = true;
-        this.consumedItem = Items.AIR;
+        this.item = Items.AIR;
     }
+
+    public ByteCornerData(BlockState material, boolean enableCT, Item item) {
+        this.material = material;
+        this.enableCT = enableCT;
+        this.item = item;
+    }
+
+    public static final Codec<ByteCornerData> CODEC = RecordCodecBuilder.create(instance ->
+        instance.group(
+                BlockState.CODEC.fieldOf("Material").forGetter(d -> d.material),
+                Codec.BOOL.fieldOf("EnableCT").forGetter(d -> d.enableCT),
+                BuiltInRegistries.ITEM.byNameCodec().fieldOf("Item").forGetter(d -> d.item)
+        ).apply(instance, ByteCornerData::new)
+    );
 
     public BlockState getMaterial() {
         return material;
@@ -47,15 +67,15 @@ public class ByteCornerData {
         this.enableCT = enableCT;
     }
 
-    public Item getConsumedItem() {
-        return consumedItem;
+    public Item getItem() {
+        return item;
     }
 
-    public void setConsumedItem(Item consumedItem) {
-        this.consumedItem = consumedItem;
+    public void setItem(Item item) {
+        this.item = item;
     }
 
     public boolean hasConsumedItem() {
-        return this.consumedItem != null && this.consumedItem != Items.AIR;
+        return this.item != null && this.item != Items.AIR;
     }
 }

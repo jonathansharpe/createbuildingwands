@@ -4,14 +4,18 @@ import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
 
+import com.simibubi.create.AllBlocks;
 import net.minecraft.Util;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.datafix.fixes.ItemStackTagFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -26,8 +30,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
+import org.checkerframework.checker.units.qual.C;
+import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
 
 public class ByteConfigMenu extends AbstractContainerMenu {
     private final InteractionHand wandHand;
@@ -49,71 +56,55 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         this.wandHand = pHand;
         this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
         this.player = pPlayerInventory.player;
-        // this.byteSlotHandler = new ItemStackHandler(8);
 
+        // registers the container slots
         for (int i = 0; i < 8; i++) {
             int[] coords = getComponentCoordinates(i);
-
             int slotX = coords[0] + BTN_WIDTH + 4;
             int slotY = coords[1] + 1;
-
             this.addSlot(new SlotItemHandler(byteSlotHandler, i, slotX, slotY));
         }
 
         if (!this.wandItem.isEmpty()) {
+            HolderLookup.Provider registries = this.player.level().registryAccess();
+
             if (!this.wandItem.has(DataComponents.CUSTOM_DATA) || this.wandItem.get(DataComponents.CUSTOM_DATA) == null) {
                 this.wandItem.set(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
             }
-            CustomData customData = this.wandItem.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-            CompoundTag rootTag = customData.copyTag();
 
-            // checking if it doesn't contain material data, so we're only setting defaults for a fresh wand
-            if (!rootTag.contains("material_data", Tag.TAG_COMPOUND)) {
+            CustomData customData = this.wandItem.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+            CompoundTag initialRoot = customData.copyTag();
+
+            if (!initialRoot.contains("material_data", Tag.TAG_COMPOUND)) {
                 for (ByteCopycatCorner corner : ByteCopycatCorner.values()) {
                     this.saveSlotMaterialToWand(corner, ItemStack.EMPTY);
                 }
             }
 
+            CustomData updatedCustomData = this.wandItem.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+            CompoundTag rootTag = updatedCustomData.copyTag();
             CompoundTag materialData = rootTag.getCompound("material_data");
+
             for (ByteCopycatCorner corner : ByteCopycatCorner.values()) {
                 int slotIndex = corner.ordinal();
-
                 CompoundTag cornerTag = materialData.getCompound(corner.getNbtKey());
-
                 ItemStack setStack = ItemStack.EMPTY;
 
-                if (cornerTag.contains("material", Tag.TAG_COMPOUND)) {
-                    CompoundTag materialCompound = cornerTag.getCompound("material");
-                    String blockIdStr = materialCompound.getString("Name");
-
-                    if (!blockIdStr.isEmpty() && !blockIdStr.equals("create:copycat_base")) {
-                        ResourceLocation resourceLocation = ResourceLocation.parse(blockIdStr);
-
-                        Block vanillaBlock = BuiltInRegistries.BLOCK.get(resourceLocation);
-
-                        Item itemFromBlock = vanillaBlock.asItem();
-
-                        if (itemFromBlock != Items.AIR) {
-                            setStack = new ItemStack(itemFromBlock, 1);
-                        }
-                    }
+                if (cornerTag.contains("Item", Tag.TAG_COMPOUND)) {
+                    setStack = ItemStack.parseOptional(registries, cornerTag.getCompound("Item"));
                 }
 
                 byteSlotHandler.setStackInSlot(slotIndex, setStack);
-                // get the materialData for corner
-                // get the itemStack for that materialData
-                // set stack in slot for that material
             }
-
-            CustomData.update(
-                DataComponents.CUSTOM_DATA,
-                this.wandItem,
-                tag -> {
-                    if (!tag.contains("active_corners", Tag.TAG_INT_ARRAY)) {
-                            tag.putIntArray("active_corners", new int[] { 0, 0, 0, 0, 0, 0, 0, 0 });
-                    }
-                }
-            );
+             CustomData.update(
+                     DataComponents.CUSTOM_DATA,
+                     this.wandItem,
+                     tag -> {
+                         if (!tag.contains("active_corners", Tag.TAG_INT_ARRAY)) {
+                             tag.putIntArray("active_corners", new int[] {0,0,0,0,0,0,0,0});
+                         }
+                     }
+             );
             this.broadcastChanges();
         }
 
@@ -325,106 +316,39 @@ public class ByteConfigMenu extends AbstractContainerMenu {
      * @param materialStack the item stack representing the block to use as a material texture
      */
     private void saveSlotMaterialToWand(ByteCopycatCorner corner, ItemStack materialStack) {
+        if (!this.wandItem.isEmpty() && this.player != null) {
 
-        /*
-        so like what does this method do?
-
-        if the wand item slot is not empty (waow)
-            update the custom data!
-            we're gonna use a big ol lambda function to change the tag for the wand
-
-            if the materialStack is empty
-                the material should be set to "create:copycat_base"
-                connected texture set to 0b
-                consumedItem to :{} (i.e. nothing)
-            else if materialStack is of type BlockItem
-                material set to materialStack blocks name
-                connected texture set to 1b (default copycats+ behavior)
-                if wandItem customData consumedItem does not contain material stack
-                    consumedItem to :{blockName}
-                    count to :1
-                else 
-                    do nothing; multistate blocks only consume up to 1 block if multiple parts contain the same texture
-
-        this.broadcastChanges()
-
-        log wand data where necessary
-         */
-        CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] about to update the material slots inside the byte config menu");
-
-        if (!this.wandItem.isEmpty()) {
+            HolderLookup.Provider registries = this.player.level().registryAccess();
             CustomData.update(DataComponents.CUSTOM_DATA, this.wandItem, tag -> {
-                CompoundTag rootTag = this.wandItem.get(DataComponents.CUSTOM_DATA).copyTag();
-                CompoundTag materialData = rootTag.getCompound("material_data");
-                CreateBuildingWands.LOGGER.info("[saveSlotMaterialToWand] here's the value of materialData BEFORE ANY MODIFICATION: {}", materialData);
-                if (materialStack.isEmpty()) {
-                    // creating clean tag to put into the wand data
-                    CompoundTag cleanCornerTag = new CompoundTag();
-                    // creating a tag to contain the default copycat material
-                    CompoundTag defaultMat = new CompoundTag();
-                    // setting the default material to create copycat base
-                    defaultMat.putString("Name", "create:copycat_base");
-
-                    // adding the default material to the clean tag that will be applied to the corner
-                    cleanCornerTag.put("material", defaultMat);
-                    // disabling connected textures, copycats+ default
-                    cleanCornerTag.putByte("enableCT", (byte) 0);
-                    // cleaning consumed item by creating an empty tag
-                    cleanCornerTag.put("consumedItem", new CompoundTag());
-
-                    // overwrite the old corner to now include the default settings
-                    materialData.put(corner.getNbtKey(), cleanCornerTag);
-
-                    CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] test drive of setting default texture, here is the entire tag: {}", materialData);
-                    // the two below things should do the thing
-                    tag.put("material_data", materialData);
-                    CreateBuildingWands.LOGGER.info("[saveSlotMaterialToWand] here's the tag: {}", tag);
-                } else if (materialStack.getItem() instanceof BlockItem blockItem) {
-                    // creating new corner tag to put into the wand data
-                    CompoundTag newCornerTag = new CompoundTag();
-                    // creating tag to contain the material
-                    CompoundTag newMaterial = new CompoundTag();
-
-                    // setting the material to be what the player requested; the BuiltInRegistries stuff is to make sure the block itself is gotten, and not an item or whatever; crucial for certain blocks that have different block names than item names (like redstone/redstone wire (even though that can't be used here but still))
-                    newMaterial.putString("Name", BuiltInRegistries.BLOCK.getKey(blockItem.getBlock()).toString());
-
-                    // adding the new material to the new tag created above
-                    newCornerTag.put("material", newMaterial);
-                    // enabling connected textures, copycats+ default 
-                    newCornerTag.putByte("enableCT", (byte) 1);
-                    // get the item name to maybe consume
-                    String currentItemName = BuiltInRegistries.ITEM.getKey(materialStack.getItem()).toString();
-                    // logic to determine if there's a consumed item already in the thing
-                    CompoundTag existingCornerTag = materialData.getCompound(corner.getNbtKey());
-                    CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] about to check cornerTag to see if it has consumedItem, here's the whole tag before the check: {}", existingCornerTag);
-                    CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] does cornerTag contain consumedItem? {}", existingCornerTag.contains("consumedItem", Tag.TAG_COMPOUND));
-                    // remove the below if statement when the default consumedItem is correctly applied
-                    if (existingCornerTag.contains("consumedItem", Tag.TAG_COMPOUND)) {
-                        CompoundTag existingConsumed = existingCornerTag.getCompound("consumedItem");
-
-                        if (existingConsumed.getString("id").equals(currentItemName)) {
-                            // do nothing
-                            CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] material already exists inside copycat, will not consume any more items");
-                        } else {
-                            // consume the item with count 1
-                            CompoundTag consumed = new CompoundTag();
-                            consumed.putString("id", currentItemName);
-                            consumed.putInt("count", 1);
-                            newCornerTag.put("consumedItem", consumed);
-                            CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] material does not yet exist inside copycat, will consume an item");
-                        }
-                    }
-                    // modifying materialData with the completely modified tag
-                    materialData.put(corner.getNbtKey(), newCornerTag);
-                    CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] test drive of inserting the slot, here is the entire tag before modifying: {}", materialData);
-                    // these two should do it
-                    tag.put("material_data", materialData);
-                    // TODO items still do not persist visually in wand, even if the materials do
-                    // TODO materials no longer apply when blocks are placed
+                if (!tag.contains("material_data", Tag.TAG_COMPOUND)) {
+                    tag.put("material_data", new CompoundTag());
                 }
+                CompoundTag materialData = tag.getCompound("material_data");
+
+                BlockState targetMaterialState;
+                ItemStack targetConsumedStack;
+                boolean ctEnabled;
+
+                if (materialStack.isEmpty()) {
+                    targetMaterialState = AllBlocks.COPYCAT_BASE.getDefaultState();
+                    targetConsumedStack = ItemStack.EMPTY;
+                    ctEnabled = false;
+                } else if (materialStack.getItem() instanceof BlockItem blockItem) {
+                    targetMaterialState = blockItem.getBlock().defaultBlockState();
+                    targetConsumedStack = new ItemStack(materialStack.getItem(), 1);
+                    ctEnabled = true;
+                } else {
+                    return;
+                }
+                CompoundTag cornerTag = new CompoundTag();
+
+                ICopycatBlockEntity.write(cornerTag, targetConsumedStack, targetMaterialState, registries, ctEnabled);
+
+                materialData.put(corner.getNbtKey(), cornerTag);
+
+                tag.put("material_data", materialData);
             });
         }
-
         this.broadcastChanges();
     }
 }
