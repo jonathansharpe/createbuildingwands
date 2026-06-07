@@ -2,14 +2,13 @@ package com.avgusrname.createbuildingwands.networking.packet;
 
 import java.util.Optional;
 
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData;
 import org.apache.commons.lang3.concurrent.AbstractConcurrentInitializer;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigMenu;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -69,7 +68,7 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
             }
             case OPEN_BYTE_CONFIG_MENU -> {
                 if (player.containerMenu instanceof ByteConfigMenu byteMenu) {
-                    ByteCopycatCorner corner = ByteCopycatCorner.values()[payload.value];
+                    ByteCornerData.Corner corner = ByteCornerData.Corner.values()[payload.value];
 
                     CreateBuildingWands.LOGGER.info("[WandPacket handleOnServer] value of corner is: {}", corner);
                     CreateBuildingWands.LOGGER.info("[WandPacket handleOnServer] current active server menu is byteconfigmenu");

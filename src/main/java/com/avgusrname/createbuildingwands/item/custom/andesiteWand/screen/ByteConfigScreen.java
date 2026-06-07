@@ -4,11 +4,9 @@ import java.util.List;
 import java.util.Optional;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.networking.packet.CornerTogglePacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandPacket.WandCommand;
-import com.simibubi.create.CreateBuildInfo;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -37,6 +35,12 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 	protected void init() {
 		super.init();
 		this.renderables.clear();
+
+		ItemStack wandStack = this.menu.getWandItem();
+		WandMaterialComponent materialComponent = wandStack.getOrDefault(
+				ModDataComponents.WAND_MATERIALS.get(),
+				WandMaterialComponent.createEmptyDefault()
+		);
 		
 		for (int i = 0; i < 8; i++) {
 			int[] coords = ByteConfigMenu.getComponentCoordinates(i);
@@ -44,17 +48,17 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 			int absoluteBtnX = this.leftPos + coords[0];
 			int absoluteBtnY = this.topPos + coords[1];
 		
-			// CreateBuildingWands.LOGGER.info("[WandDebug init] btn coords: x: {}, y: {}", absoluteBtnX, absoluteBtnY);
-
 			final int cornerIndex = i;
-			ByteCopycatCorner tempCorner = ByteCopycatCorner.values()[cornerIndex];
-			String initialLabel = formatCornerName(tempCorner.getNbtKey()) + ": OFF";
+			ByteCornerData.Corner tempCorner = ByteCornerData.Corner.values()[cornerIndex];
+			ByteCornerData cornerData = materialComponent.corners().get(cornerIndex);
 
-			// CreateBuildingWands.LOGGER.info("initialLabel: {}", initialLabel);
+			String statusText = cornerData.isActive() ? "ON" : "OFF";
+			String initialLabel = formatCornerName(tempCorner.name()) + ": " + statusText;
 
 			this.cornerButtons[i] = Button.builder(Component.literal(initialLabel), button -> {
-				PacketDistributor.sendToServer(new WandPacket(WandPacket.WandCommand.OPEN_BYTE_CONFIG_MENU, cornerIndex, Optional.empty(), this.menu.getWandHand()));
-				// CreateBuildingWands.LOGGER.info("[WandDebug init] button has been clicked");
+				PacketDistributor.sendToServer(new CornerTogglePacket(cornerIndex));
+				CreateBuildingWands.LOGGER.info("[WandDebug init] button has been clicked");
+				CreateBuildingWands.LOGGER.info("[WandDebug init] player menu class: {}", this.menu.getClass().getName());
 			}).bounds(absoluteBtnX, absoluteBtnY, ByteConfigMenu.BTN_WIDTH, ByteConfigMenu.BTN_HEIGHT).build();
 
 			this.addRenderableWidget(this.cornerButtons[i]);
@@ -85,24 +89,20 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 
 		ItemStack syncedWand = this.minecraft.player.getItemInHand(this.menu.getWandHand());
 
-		int[] activeCorners = new int[] {0, 0, 0, 0, 0, 0, 0, 0};
-
-		if (!syncedWand.isEmpty() && syncedWand.has(DataComponents.CUSTOM_DATA)) {
-			CompoundTag clientTag = syncedWand.get(DataComponents.CUSTOM_DATA).copyTag();
-			int[] savedArray = clientTag.getIntArray("active_corners");
-			if (savedArray.length == 8) {
-				activeCorners = savedArray;
-			}
-		}
+		WandMaterialComponent materialComponent = syncedWand.getOrDefault(
+				ModDataComponents.WAND_MATERIALS.get(),
+				WandMaterialComponent.createEmptyDefault()
+		);
 
 		for (int i = 0; i < 8; i++) {
 			Button btn = this.cornerButtons[i];
 			if (btn != null) {
-				ByteCopycatCorner corner = ByteCopycatCorner.values()[i];
-				boolean isActive = activeCorners[i] == 1;
+				ByteCornerData.Corner corner = ByteCornerData.Corner.values()[i];
+				ByteCornerData cornerData = materialComponent.corners().get(i);
+				boolean isActive = cornerData.isActive();
 				String stateSuffix = isActive ? ": ON" : ": OFF";
 
-				btn.setMessage(Component.literal(formatCornerName(corner.getNbtKey()) + stateSuffix));
+				btn.setMessage(Component.literal(formatCornerName(corner.name()) + stateSuffix));
 			}
 		}
 	}
@@ -113,22 +113,14 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 	// 	this.updateButtonMessages();
 	// }
 
-	private String formatCornerName(String nbtKey) {
-		if (nbtKey == null || nbtKey.isEmpty()) return "unknown";
+	private String formatCornerName(String enumName) {
+		if (enumName == null || enumName.isEmpty()) return "unknown";
 
-		String[] parts = nbtKey.split("_");
-		if (parts.length != 2) return nbtKey;
+		String[] parts = enumName.split("_");
+		if (parts.length != 2) return enumName;
 
 		String prefix = parts[0].substring(0,1).toUpperCase() + parts[0].substring(1);
-		String directional = parts[1].toUpperCase();
-
-		switch (directional) {
-			case "NORTHWEST" -> directional = "NW";
-			case "NORTHEAST" -> directional = "NE";
-			case "SOUTHWEST" -> directional = "SW";
-			case "SOUTHEAST" -> directional = "SE";
-			default -> directional = parts[1].substring(0,1).toUpperCase() + parts[1].substring(1);
-		}
+		String directional = parts[1];
 
 		return prefix + " " + directional;
 	}

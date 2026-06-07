@@ -1,11 +1,18 @@
 package com.avgusrname.createbuildingwands.item.custom.andesiteWand;
 
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData;
+import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandMaterialComponent;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.foundation.blockEntity.IMergeableBE;
+import it.unimi.dsi.fastutil.bytes.Byte2CharOpenCustomHashMap;
+import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.datafix.fixes.BlockEntityCustomNameToComponentFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Inventory;
@@ -17,7 +24,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.neoforged.neoforge.items.ItemStackHandler;
@@ -48,13 +57,11 @@ import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
 import javax.annotation.Nullable;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigMenu;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData.ByteCopycatCorner;
 import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
 
 import java.util.ArrayList;
@@ -250,6 +257,19 @@ public class AndesiteWandItem extends Item {
         return successfulPlacement ? InteractionResult.CONSUME : InteractionResult.FAIL;
     }
 
+    private String getPropertyKeyFromCorner(ByteCornerData.Corner corner) {
+        return switch(corner) {
+            case BOTTOM_NW -> "bottom_northwest";
+            case BOTTOM_NE -> "bottom_northeast";
+            case BOTTOM_SW -> "bottom_southwest";
+            case BOTTOM_SE -> "bottom_southeast";
+            case TOP_NW    -> "top_northwest";
+            case TOP_NE    -> "top_northeast";
+            case TOP_SW    -> "top_southwest";
+            case TOP_SE    -> "top_southeast";
+        };
+    }
+
     // actually this doesn't receive consumedItem in the first place
     private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
         CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
@@ -260,121 +280,76 @@ public class AndesiteWandItem extends Item {
         BlockState stateToPlace = getOrientedBlockState(block, localContext);
 
         if (isCopycat) {
-            CreateBuildingWands.LOGGER
-                    .info("[WandDebug placeBlock] pre-processing copycat block data before placement");
-
-            if (player != null) {
-                ItemStack wandStack = player.getItemInHand(InteractionHand.MAIN_HAND);
-
-                CompoundTag preparedBlockEntityTag = new CompoundTag();
-                BlockState finalStateToPlace = stateToPlace;
-
-                if (wandStack.has(DataComponents.CUSTOM_DATA)) {
-                    CompoundTag wandTag = wandStack.get(DataComponents.CUSTOM_DATA).copyTag();
-
-                    int[] activeCorners = wandTag.contains("active_corners") ? wandTag.getIntArray("active_corners")
-                            : new int[] { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-                    finalStateToPlace = finalStateToPlace
-                        .setValue(CopycatByteBlock.BOTTOM_NW,   activeCorners[0] == 1)
-                        .setValue(CopycatByteBlock.BOTTOM_NE,   activeCorners[1] == 1)
-                        .setValue(CopycatByteBlock.BOTTOM_SW,   activeCorners[2] == 1)
-                        .setValue(CopycatByteBlock.BOTTOM_SE,   activeCorners[3] == 1)
-                        .setValue(CopycatByteBlock.TOP_NW,      activeCorners[4] == 1)
-                        .setValue(CopycatByteBlock.TOP_NE,      activeCorners[5] == 1)
-                        .setValue(CopycatByteBlock.TOP_SW,      activeCorners[6] == 1)
-                        .setValue(CopycatByteBlock.TOP_SE,      activeCorners[7] == 1);
-
-                    CompoundTag filteredMaterialData = new CompoundTag();
-                    HolderLookup.Provider registries = level.registryAccess();
-
-                    if (wandTag.contains("material_data", Tag.TAG_COMPOUND)) {
-                        filteredMaterialData = wandTag.getCompound("material_data").copy();
-                    } else {
-                        for (ByteCopycatCorner c : ByteCopycatCorner.values()) {
-                            CompoundTag cornerSetup = new CompoundTag();
-                            ICopycatBlockEntity.write(
-                                    cornerSetup,
-                                    ItemStack.EMPTY,
-                                    AllBlocks.COPYCAT_BASE.getDefaultState(),
-                                    registries,
-                                    false
-                            );
-                            filteredMaterialData.put(c.getNbtKey(), cornerSetup);
-                        }
-                    }
-
-                    for (ByteCopycatCorner corner : ByteCopycatCorner.values()) {
-                        int idx = corner.ordinal();
-                        if (idx < activeCorners.length && activeCorners[idx] == 0) {
-                            filteredMaterialData.remove(corner.getNbtKey());
-                        }
-                    }
-
-                    preparedBlockEntityTag.put("material_data", filteredMaterialData);
-                }
-
-                if (level.setBlock(pos, finalStateToPlace, 3)) {
-                    BlockEntity be = level.getBlockEntity(pos);
-                    if (be != null && !preparedBlockEntityTag.isEmpty()) {
-                        // TODO the preparedBlockEntityTag does not get saved correctly here, so i must be preparing it wrong
-                        CompoundTag completeMetadata = be.saveWithFullMetadata(level.registryAccess());
-                        completeMetadata.merge(preparedBlockEntityTag);
-
-                        CreateBuildingWands.LOGGER.info("[WandDebug placeBlock] completeMetadata is {}", completeMetadata);
-
-                        be.loadWithComponents(completeMetadata, level.registryAccess());
-                        be.setChanged();
-
-                        if (material != null && !material.isEmpty() && !material.is(Items.AIR)) {
-                            String property = determinePropertyFromFace(stateToPlace, clickedFace);
-                            Block actualBlock = Block.byItem(material.getItem());
-                            BlockState materialState = actualBlock.defaultBlockState();
-                            
-                            if (!materialState.isAir()) {
-                                CreateBuildingWands.LOGGER.info("[WandDebug placeBlock] Applying valid texture state: {}", materialState);
-                                applyCopycatMaterial(level, pos, materialState, material, property);
-                            }
-                        } else {
-                            CreateBuildingWands.LOGGER.info("[WandDebug] Skipping material application because the placement resource stack is empty/air.");
-                        }
-
-                        level.sendBlockUpdated(pos, finalStateToPlace, finalStateToPlace, Block.UPDATE_ALL);
-                        return true;
-                    }
-                    CreateBuildingWands.LOGGER
-                            .info("[WandDebug AndesiteWandItem.placeBlock] Block placement succeeded (copycat)");
-                    return true;
-                } else {
-                    CreateBuildingWands.LOGGER
-                            .info("[WandDebug placeBlock] something went wrong, copycat block placement failed");
-                    return false;
-                }
-            }
-        } else {
-            if (level.setBlock(pos, stateToPlace, 3)) {
-                CreateBuildingWands.LOGGER
-                        .info("[WandDebug AndesiteWandItem.placeBlock] Block placement succeeded (non-copycat)");
-                return true;
-            } else {
-                CreateBuildingWands.LOGGER
-                        .info("[WandDebug placeBlock] something went wrong, non-copycat block placement failed");
+            if (player == null) {
                 return false;
             }
+            ItemStack wandStack = player.getItemInHand(InteractionHand.MAIN_HAND);
+
+            WandMaterialComponent materialComponent = wandStack.getOrDefault(
+                    ModDataComponents.WAND_MATERIALS.get(),
+                    WandMaterialComponent.createEmptyDefault()
+            );
+
+            BlockState finalStateToPlace = stateToPlace
+                    .setValue(CopycatByteBlock.BOTTOM_NW, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_NW.ordinal()).isActive())
+                    .setValue(CopycatByteBlock.BOTTOM_NE, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_NE.ordinal()).isActive())
+                    .setValue(CopycatByteBlock.BOTTOM_SW, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_SW.ordinal()).isActive())
+                    .setValue(CopycatByteBlock.BOTTOM_SE, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_SE.ordinal()).isActive())
+                    .setValue(CopycatByteBlock.TOP_NW, materialComponent.corners().get(ByteCornerData.Corner.TOP_NW.ordinal()).isActive())
+                    .setValue(CopycatByteBlock.TOP_NE, materialComponent.corners().get(ByteCornerData.Corner.TOP_NE.ordinal()).isActive())
+                    .setValue(CopycatByteBlock.TOP_SW, materialComponent.corners().get(ByteCornerData.Corner.TOP_SW.ordinal()).isActive())
+                    .setValue(CopycatByteBlock.TOP_SE, materialComponent.corners().get(ByteCornerData.Corner.TOP_SE.ordinal()).isActive());
+
+            if (level.setBlock(pos, finalStateToPlace, 2)) {
+                BlockEntity targetBE = level.getBlockEntity(pos);
+
+                if (targetBE instanceof IMultiStateCopycatBlockEntity copycatMock) {
+                    for (ByteCornerData.Corner corner : ByteCornerData.Corner.values()) {
+                        int idx = corner.ordinal();
+                        ByteCornerData cornerData = materialComponent.corners().get(idx);
+
+                        if (cornerData.isActive()) {
+                            String propertyKey = getPropertyKeyFromCorner(corner);
+
+                            copycatMock.setMaterial(propertyKey, cornerData.material());
+                            copycatMock.setConsumedItem(propertyKey, cornerData.consumedItem());
+                            copycatMock.setEnableCT(propertyKey, cornerData.enableCT());
+                        }
+                    }
+                }
+                if (targetBE instanceof IMergeableBE mergeableBE) {
+                    mergeableBE.accept(targetBE);
+                }
+
+                assert targetBE != null;
+                targetBE.setChanged();
+
+                if (material != null && !material.isEmpty() && !material.is(Items.AIR)) {
+                    String property = determinePropertyFromFace(stateToPlace, clickedFace);
+                    Block actualBlock = Block.byItem(material.getItem());
+                    BlockState materialState = actualBlock.defaultBlockState();
+                    if (!materialState.isAir()) {
+                        applyCopycatMaterial(level, pos, materialState, material, property);
+                    }
+                }
+                return true;
+            }
+            return false;
+        } else {
+            return level.setBlock(pos, stateToPlace, 3);
         }
+
         // this should never happen but the compiler was complaining
-        return false;
     }
 
     /**
-     * places many blocks. the function will either set the start position, or use the existing start position to place blocks to the end position
-     * @param mode the mode that defines what helper function to call, that gets a list of BlockPos at which to place the blocks
-     * @param level the minecraft world itself where the blocks are placed
-     * @param player the player who holds the wand and items to consume
-     * @param wand the wand item, which will contain the startpos if it exists
-     * @param clickedPos the clicked block position, will either be used to set the startpos or as the endpos to complete the block placement
-     * @param face the direction at which the player is looking, but it's not really working i don't think? fix this
-     * @return will return a bool if the placement succeeded or failed. will need to utilize this more to better identify problems
+     * places many blocks at a time, according to the user-defined shape
+     * @param mode
+     * @param level
+     * @param player
+     * @param wand
+     * @param context
+     * @return
      */
     private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
         // TODO implement a randomizer functionality, using the create shuffle filter mod
@@ -384,16 +359,11 @@ public class AndesiteWandItem extends Item {
         BlockPos clickedPos = context.getClickedPos();
         Direction face = context.getClickedFace();
 
-        System.out.println("=== placeMultiple called on " + (level.isClientSide ? "CLIENT" : "SERVER") + " ===");
-
         Block storedRegularBlock = wand.get(ModDataComponents.WAND_BLOCK.get());
         Block storedCopycatBlock = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
 
         if (storedRegularBlock == null) {
-            player.displayClientMessage(
-                Component.literal("No block configured in wand").withStyle(ChatFormatting.RED),
-                true
-            );
+            player.displayClientMessage(Component.literal("No block configured in wand").withStyle(ChatFormatting.RED), true);
             return false;
         }
 
