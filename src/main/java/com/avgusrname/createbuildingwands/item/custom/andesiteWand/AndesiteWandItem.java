@@ -2,14 +2,18 @@ package com.avgusrname.createbuildingwands.item.custom.andesiteWand;
 
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandMaterialComponent;
+import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
+import com.copycatsplus.copycats.utility.BlockEntityUtils;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.foundation.blockEntity.IMergeableBE;
 import it.unimi.dsi.fastutil.bytes.Byte2CharOpenCustomHashMap;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.datafix.fixes.BlockEntityCustomNameToComponentFix;
@@ -22,13 +26,17 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.SlabType;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.ChatFormatting;
@@ -63,6 +71,8 @@ import com.avgusrname.createbuildingwands.item.custom.WandMode;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigMenu;
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.checkerframework.checker.units.qual.C;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -270,74 +280,79 @@ public class AndesiteWandItem extends Item {
         };
     }
 
-    // actually this doesn't receive consumedItem in the first place
+    private BooleanProperty getPropFromCorner(ByteCornerData.Corner corner) {
+        return switch(corner) {
+            case BOTTOM_NW -> CopycatByteBlock.BOTTOM_NW;
+            case BOTTOM_NE -> CopycatByteBlock.BOTTOM_NE;
+            case BOTTOM_SW -> CopycatByteBlock.BOTTOM_SW;
+            case BOTTOM_SE -> CopycatByteBlock.BOTTOM_SE;
+            case TOP_NW    -> CopycatByteBlock.TOP_NW;
+            case TOP_NE    -> CopycatByteBlock.TOP_NE;
+            case TOP_SW    -> CopycatByteBlock.TOP_SW;
+            case TOP_SE    -> CopycatByteBlock.TOP_SE;
+        };
+    }
+
     private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
-        CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
-        if (!level.getBlockState(pos).canBeReplaced())
-            return false;
+        //CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
+        if (!level.getBlockState(pos).canBeReplaced()) return false;
+        if (player == null) return false;
 
         BlockPlaceContext localContext = BlockPlaceContext.at(originalContext, pos, clickedFace);
         BlockState stateToPlace = getOrientedBlockState(block, localContext);
 
-        if (isCopycat) {
-            if (player == null) {
-                return false;
-            }
-            ItemStack wandStack = player.getItemInHand(InteractionHand.MAIN_HAND);
-
-            WandMaterialComponent materialComponent = wandStack.getOrDefault(
-                    ModDataComponents.WAND_MATERIALS.get(),
-                    WandMaterialComponent.createEmptyDefault()
-            );
-
-            BlockState finalStateToPlace = stateToPlace
-                    .setValue(CopycatByteBlock.BOTTOM_NW, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_NW.ordinal()).isActive())
-                    .setValue(CopycatByteBlock.BOTTOM_NE, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_NE.ordinal()).isActive())
-                    .setValue(CopycatByteBlock.BOTTOM_SW, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_SW.ordinal()).isActive())
-                    .setValue(CopycatByteBlock.BOTTOM_SE, materialComponent.corners().get(ByteCornerData.Corner.BOTTOM_SE.ordinal()).isActive())
-                    .setValue(CopycatByteBlock.TOP_NW, materialComponent.corners().get(ByteCornerData.Corner.TOP_NW.ordinal()).isActive())
-                    .setValue(CopycatByteBlock.TOP_NE, materialComponent.corners().get(ByteCornerData.Corner.TOP_NE.ordinal()).isActive())
-                    .setValue(CopycatByteBlock.TOP_SW, materialComponent.corners().get(ByteCornerData.Corner.TOP_SW.ordinal()).isActive())
-                    .setValue(CopycatByteBlock.TOP_SE, materialComponent.corners().get(ByteCornerData.Corner.TOP_SE.ordinal()).isActive());
-
-            if (level.setBlock(pos, finalStateToPlace, 2)) {
-                BlockEntity targetBE = level.getBlockEntity(pos);
-
-                if (targetBE instanceof IMultiStateCopycatBlockEntity copycatMock) {
-                    for (ByteCornerData.Corner corner : ByteCornerData.Corner.values()) {
-                        int idx = corner.ordinal();
-                        ByteCornerData cornerData = materialComponent.corners().get(idx);
-
-                        if (cornerData.isActive()) {
-                            String propertyKey = getPropertyKeyFromCorner(corner);
-
-                            copycatMock.setMaterial(propertyKey, cornerData.material());
-                            copycatMock.setConsumedItem(propertyKey, cornerData.consumedItem());
-                            copycatMock.setEnableCT(propertyKey, cornerData.enableCT());
-                        }
-                    }
-                }
-                if (targetBE instanceof IMergeableBE mergeableBE) {
-                    mergeableBE.accept(targetBE);
-                }
-
-                assert targetBE != null;
-                targetBE.setChanged();
-
-                if (material != null && !material.isEmpty() && !material.is(Items.AIR)) {
-                    String property = determinePropertyFromFace(stateToPlace, clickedFace);
-                    Block actualBlock = Block.byItem(material.getItem());
-                    BlockState materialState = actualBlock.defaultBlockState();
-                    if (!materialState.isAir()) {
-                        applyCopycatMaterial(level, pos, materialState, material, property);
-                    }
-                }
-                return true;
-            }
-            return false;
-        } else {
-            return level.setBlock(pos, stateToPlace, 3);
+        if (!isCopycat) {
+            return level.setBlock(pos, stateToPlace, Block.UPDATE_ALL);
         }
+        WandMaterialComponent materialComponent = player.getItemInHand(InteractionHand.MAIN_HAND)
+                .getOrDefault(ModDataComponents.WAND_MATERIALS.get(),WandMaterialComponent.createEmptyDefault());
+
+        BlockState finalStateToPlace = stateToPlace;
+
+        for (ByteCornerData.Corner corner : ByteCornerData.Corner.values()) {
+            finalStateToPlace = finalStateToPlace.setValue(
+                    getPropFromCorner(corner),
+                    materialComponent.corners().get(corner.ordinal()).isActive()
+            );
+        }
+
+        BlockState oldState = level.getBlockState(pos);
+        if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
+
+        BlockEntity targetBE = level.getBlockEntity(pos);
+        if (!(targetBE instanceof IMultiStateCopycatBlockEntity copycatMock)) return false;
+
+        copycatMock.init();
+
+        for (ByteCornerData.Corner corner : ByteCornerData.Corner.values()) {
+            ByteCornerData cornerData = materialComponent.corners().get(corner.ordinal());
+            if (!cornerData.isActive()) continue;
+
+            String propertyKey = getPropertyKeyFromCorner(corner);
+            CreateBuildingWands.LOGGER.info("Setting material for key: {} to: {}", propertyKey, cornerData.material());
+
+            copycatMock.setMaterial(propertyKey, cornerData.material());
+            copycatMock.setConsumedItem(propertyKey, cornerData.consumedItem());
+            copycatMock.setEnableCT(propertyKey, cornerData.enableCT());
+        }
+
+        CreateBuildingWands.LOGGER.info("BE materials IMMEDIATELY after loop: {}", copycatMock.getMaterialItemStorage().getAllMaterials());
+
+        targetBE.setChanged();
+
+        if (level instanceof ServerLevel serverLevel) {
+            var syncPacket = targetBE.getUpdatePacket();
+            if (syncPacket != null) {
+                serverLevel.getChunkSource().chunkMap.getPlayers(new ChunkPos(pos), false)
+                        .forEach(p -> p.connection.send(syncPacket));
+            }
+            serverLevel.getChunkSource().blockChanged(pos);
+            serverLevel.getChunkSource().chunkMap.getPlayers(new ChunkPos(pos), false)
+                    .forEach(p -> PacketDistributor.sendToPlayer(p, new ForceRedrawPacket(pos)));
+        }
+
+        level.sendBlockUpdated(pos, oldState, finalStateToPlace, Block.UPDATE_ALL);
+        return true;
 
         // this should never happen but the compiler was complaining
     }

@@ -2,14 +2,12 @@ package com.avgusrname.createbuildingwands;
 
 
 import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.*;
+import com.avgusrname.createbuildingwands.networking.packet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
-import com.avgusrname.createbuildingwands.networking.packet.CornerTogglePacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -80,6 +78,12 @@ public class CreateBuildingWands {
                 (payload, context) -> {
                     context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context));
                 }
+            );
+
+            registrar.playToClient(
+                    ForceRedrawPacket.TYPE,
+                    ForceRedrawPacket.CODEC,
+                    ForceRedrawPacketHandler::handle
             );
 
             registrar.playBidirectional(

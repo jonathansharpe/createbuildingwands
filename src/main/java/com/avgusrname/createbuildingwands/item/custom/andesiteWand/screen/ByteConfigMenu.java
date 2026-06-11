@@ -308,7 +308,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
                     newMaterialState,
                     oldCorner.enableCT(),
                     newConsumedItem.copy(),
-                    oldCorner.isActive()
+                    true
             );
 
             WandMaterialComponent updatedComponent = currentData.withCorner(index, updatedCorner);

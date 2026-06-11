@@ -19,7 +19,7 @@ public record ByteCornerData(BlockState material, boolean enableCT, ItemStack co
     public static ByteCornerData defaultEmpty() {
         return new ByteCornerData(
                 AllBlocks.COPYCAT_BASE.getDefaultState(),
-                true,
+                false,
                 ItemStack.EMPTY,
                 false
         );
