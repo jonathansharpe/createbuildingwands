@@ -1,11 +1,10 @@
-package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 
 import com.simibubi.create.AllBlocks;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.util.datafix.fixes.ItemStackTagFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -20,12 +19,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
+import org.jetbrains.annotations.NotNull;
 
 public class ByteConfigMenu extends AbstractContainerMenu {
     private final InteractionHand wandHand;
     private final ItemStack wandItem;
-    // private final ItemStackHandler byteSlotHandler;
-    private final Player player;
 
     public static final int BTN_WIDTH = 95;
     public static final int BTN_HEIGHT = 20;
@@ -40,7 +38,6 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         super(ModMenuTypes.BYTE_CONFIG_MENU.get(), pContainerId);
         this.wandHand = pHand;
         this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
-        this.player = pPlayerInventory.player;
 
         // registers the container slots
         for (int i = 0; i < 8; i++) {
@@ -76,7 +73,6 @@ public class ByteConfigMenu extends AbstractContainerMenu {
             this.broadcastChanges();
         }
 
-
         int invTopY = 132;
         for (int row = 0; row < 3; ++row) {
             for (int col = 0; col < 9; ++col) {
@@ -108,7 +104,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         }
 
         @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+        public @NotNull ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             CreateBuildingWands.LOGGER.info("[WandDebug byteSlotHandler insertItem] about to insert an item");
 
             if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) {
@@ -126,7 +122,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         }
 
         @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+        public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
             CreateBuildingWands.LOGGER.info("[WandDebug byteSlotHandler insertItem] about to remove an item");
 
             if (!this.getStackInSlot(slot).isEmpty()) {
@@ -151,7 +147,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public void clicked(int slotId, int button, ClickType clickType, Player player) {
+    public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
         if (slotId >= 0 && slotId < 8) {
             Slot targetslot = this.slots.get(slotId);
             ItemStack carriedStack = this.getCarried();
@@ -195,7 +191,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
      * @return
      */
     @Override
-    public ItemStack quickMoveStack(Player player, int index) {
+    public @NotNull ItemStack quickMoveStack(@NotNull Player player, int index) {
         if (index >= 8) {
             Slot sourceSlot = this.slots.get(index);
             if (sourceSlot.hasItem()) {
@@ -234,7 +230,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean stillValid(Player player) {
+    public boolean stillValid(@NotNull Player player) {
         return true;
     }
 
@@ -251,7 +247,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public MenuType<?> getType() {
+    public @NotNull MenuType<?> getType() {
         return ModMenuTypes.BYTE_CONFIG_MENU.get();
     }
 
@@ -291,7 +287,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
                             consumeItem = false;
                             break;
                         }
-                    };
+                    }
                 }
             }
 

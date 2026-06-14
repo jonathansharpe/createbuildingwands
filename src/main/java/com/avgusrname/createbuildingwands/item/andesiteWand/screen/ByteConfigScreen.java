@@ -1,23 +1,18 @@
-package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
-
-import java.util.List;
-import java.util.Optional;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.networking.packet.CornerTogglePacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.NotNull;
 
 public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 
@@ -75,7 +70,7 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 	}
 
 	@Override
-	public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+	public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
 		// CreateBuildingWands.LOGGER.info("[WandDebug render] about to update buttons and then render everything");
 		this.updateButtonMessages();
 		super.render(guiGraphics, mouseX, mouseY, partialTick);
@@ -85,7 +80,8 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 		// INFO any log messages in this function will be called a LOT, like once every second, so log carefully
 		// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] updateButtonMessages called");
 
-		if (this.minecraft.player == null) return;
+        assert this.minecraft != null;
+        if (this.minecraft.player == null) return;
 
 		ItemStack syncedWand = this.minecraft.player.getItemInHand(this.menu.getWandHand());
 
@@ -107,13 +103,7 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 		}
 	}
 
-	// @Override
-	// protected void containerTick() {
-	// 	super.containerTick();
-	// 	this.updateButtonMessages();
-	// }
-
-	private String formatCornerName(String enumName) {
+    private String formatCornerName(String enumName) {
 		if (enumName == null || enumName.isEmpty()) return "unknown";
 
 		String[] parts = enumName.split("_");

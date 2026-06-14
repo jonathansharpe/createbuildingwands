@@ -1,8 +1,7 @@
-package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.item.custom.WandMode;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPacket.WandCommand;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -27,8 +26,6 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         ResourceLocation.fromNamespaceAndPath(CreateBuildingWands.MODID, "textures/gui/wandconfig/wand_gui.png");
 
     private static final int MODE_WIDGET_WIDTH = 80;
-    
-    private WandModeScrollWidget modeWidget;
 
     private static final List<Component> WAND_MODE_NAMES = Arrays.stream(WandMode.values())
         .map(WandMode::getDisplayName)
@@ -57,7 +54,7 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
 
         int initialModeIndex = this.menu.getInitialModeIndex();
 
-        this.modeWidget = new WandModeScrollWidget(
+        WandModeScrollWidget modeWidget = new WandModeScrollWidget(
                 modeWidgetX,
                 modeWidgetY,
                 WAND_MODE_NAMES,

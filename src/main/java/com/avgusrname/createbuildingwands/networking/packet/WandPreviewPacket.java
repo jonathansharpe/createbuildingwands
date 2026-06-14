@@ -1,10 +1,7 @@
 package com.avgusrname.createbuildingwands.networking.packet;
 
-import javax.annotation.Nullable;
-
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
-import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.WandClientPreview;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
@@ -14,9 +11,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;

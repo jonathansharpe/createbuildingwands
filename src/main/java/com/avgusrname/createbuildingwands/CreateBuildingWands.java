@@ -1,13 +1,13 @@
 package com.avgusrname.createbuildingwands;
 
 
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.*;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.*;
 import com.avgusrname.createbuildingwands.networking.packet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
-import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
+import com.avgusrname.createbuildingwands.item.WandClientPreview;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -75,9 +75,7 @@ public class CreateBuildingWands {
             registrar.playBidirectional(
                 WandPreviewPacket.TYPE,
                 WandPreviewPacket.STREAM_CODEC,
-                (payload, context) -> {
-                    context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context));
-                }
+                (payload, context) -> context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context))
             );
 
             registrar.playToClient(
@@ -89,23 +87,21 @@ public class CreateBuildingWands {
             registrar.playBidirectional(
                 CornerTogglePacket.TYPE, 
                 CornerTogglePacket.CODEC, 
-                (payload, context) -> {
-                    context.enqueueWork(() -> {
-                        Player player = context.player();
-                        CreateBuildingWands.LOGGER.info("[WandDebug] Server received packet payload for Corner Ordinal: {}", payload.cornerOrdinal(), player.getName().getString());
+                (payload, context) -> context.enqueueWork(() -> {
+                    Player player = context.player();
+                    CreateBuildingWands.LOGGER.info("[WandDebug] Server received packet payload for Corner Ordinal: {}", payload.cornerOrdinal(), player.getName().getString());
 
-                        if (player.containerMenu instanceof ByteConfigMenu menu) {
-                            CreateBuildingWands.LOGGER.info("[WandDebug] Valid container match found! Passing execution to handleServerToggle.");
+                    if (player.containerMenu instanceof ByteConfigMenu menu) {
+                        CreateBuildingWands.LOGGER.info("[WandDebug] Valid container match found! Passing execution to handleServerToggle.");
 
-                            ByteCornerData.Corner targetCorner = ByteCornerData.Corner.values()[payload.cornerOrdinal()];
+                        ByteCornerData.Corner targetCorner = ByteCornerData.Corner.values()[payload.cornerOrdinal()];
 
-                            menu.handleServerToggle(targetCorner);
-                        }
-                        else {
-                            CreateBuildingWands.LOGGER.warn("[WandDebug] Packet dropped! Player container menu is NOT an instance of ByteConfigMenu. Active Container: {}", player.containerMenu.getClass().getSimpleName());
-                        }
-                    });
-                }
+                        menu.handleServerToggle(targetCorner);
+                    }
+                    else {
+                        CreateBuildingWands.LOGGER.warn("[WandDebug] Packet dropped! Player container menu is NOT an instance of ByteConfigMenu. Active Container: {}", player.containerMenu.getClass().getSimpleName());
+                    }
+                })
             );
 
             LOGGER.info("Networking Payloads Registered directly in main mod class.");

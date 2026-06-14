@@ -1,4 +1,4 @@
-package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
@@ -6,33 +6,21 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
-import net.neoforged.neoforge.items.wrapper.InvWrapper;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 
-import com.avgusrname.createbuildingwands.component.BlockReferenceComponent;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
-import com.avgusrname.createbuildingwands.item.custom.WandMode;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.item.WandMode;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.references.Items;
-import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.NotNull;
 
 public class WandConfigMenu extends AbstractContainerMenu{
 
     private final InteractionHand wandHand;
     private final ItemStack wandItem;
-    private final Level wandLevel;
-
-    private final Inventory actualPlayerInventory;
-    private final IItemHandler playerInventoryWrapper;
 
     private final int initialModeIndex;
 
@@ -52,10 +40,6 @@ public class WandConfigMenu extends AbstractContainerMenu{
         // sets some important stuff passed through the parameters
         this.wandHand = pHand;
         this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
-        this.wandLevel = pPlayerInventory.player.level();
-
-        this.actualPlayerInventory = pPlayerInventory;
-        this.playerInventoryWrapper = new InvWrapper(pPlayerInventory);
 
         // this will set the wand mode in the menu to be what it is from the data components, or set a default value of SINGLE if there is none (like when the wand is used for the first time)
         WandMode currentMode = this.wandItem.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
@@ -116,7 +100,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
 
         @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+        public @NotNull ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
 
             System.out.println("Wand Slot insertItem() called; Performing overwrite.");
 
@@ -144,7 +128,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
 
         @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+        public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
 
             System.out.println("Wand Slot extractItem() called: Clearing reference slot.");
 
@@ -173,7 +157,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
 
         @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+        public @NotNull ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             System.out.println("Copycat Slot insertItem() called; Performing overwrite.");
 
             if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) {
@@ -193,7 +177,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
 
         @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+        public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
             System.out.println("Copycat Slot extractItem() called: Clearing reference slot.");
 
             if (!this.getStackInSlot(slot).isEmpty()) {
@@ -207,7 +191,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
 
 
     @Override
-    public void clicked(int slotId, int button, ClickType clickType, Player player) {
+    public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
         // debugging statements
 
         if (slotId == 0) {
@@ -251,14 +235,12 @@ public class WandConfigMenu extends AbstractContainerMenu{
             if (!cursorStack.isEmpty() && (cursorStack.getItem() instanceof BlockItem)) {
                 if (clickType == ClickType.THROW || clickType == ClickType.CLONE || clickType == ClickType.SWAP) {
                     super.clicked(slotId, button, clickType, player);
-                    return;
                 }
                 else {
-                    ItemStack remainingStack = copycatSlotHandler.insertItem(0, cursorStack, false);
+                    copycatSlotHandler.insertItem(0, cursorStack, false);
                     copycatSlot.setChanged();
-                    
-                    return;
                 }
+                return;
             }
             else if (cursorStack.isEmpty() && (clickType == ClickType.PICKUP || clickType == ClickType.QUICK_MOVE) && !copycatSlot.getItem().isEmpty()) {
                 copycatSlotHandler.extractItem(0, 1, false);
@@ -283,10 +265,6 @@ public class WandConfigMenu extends AbstractContainerMenu{
         return wandHand;
     }
 
-    public ItemStack getWandItem() {
-        return wandItem;
-    }
-
     @Override
     public boolean stillValid(Player pPlayer) {
         return pPlayer.getItemInHand(this.wandHand) == this.wandItem;
@@ -304,11 +282,11 @@ public class WandConfigMenu extends AbstractContainerMenu{
     }
 
     @Override
-    public ItemStack quickMoveStack(Player pPlayer, int pIndex) {
+    public @NotNull ItemStack quickMoveStack(@NotNull Player pPlayer, int pIndex) {
         ItemStack originalStack = ItemStack.EMPTY;
         Slot slot = this.slots.get(pIndex);
 
-        if (slot != null && slot.hasItem()) {
+        if (slot.hasItem()) {
             ItemStack slotStack = slot.getItem();
             originalStack = slotStack.copy();
 

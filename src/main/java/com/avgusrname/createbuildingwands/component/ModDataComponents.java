@@ -1,12 +1,11 @@
 package com.avgusrname.createbuildingwands.component;
 
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.item.custom.WandMode;
+import com.avgusrname.createbuildingwands.item.WandMode;
 
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandMaterialComponent;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;

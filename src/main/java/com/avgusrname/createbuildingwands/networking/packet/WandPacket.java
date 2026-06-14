@@ -2,13 +2,12 @@ package com.avgusrname.createbuildingwands.networking.packet;
 
 import java.util.Optional;
 
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteCornerData;
-import org.apache.commons.lang3.concurrent.AbstractConcurrentInitializer;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ByteCornerData;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.item.custom.WandMode;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigMenu;
+import com.avgusrname.createbuildingwands.item.WandMode;
+import com.avgusrname.createbuildingwands.item.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ByteConfigMenu;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -19,12 +18,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public record WandPacket(WandCommand command, int value, Optional<WandMode> wandMode, InteractionHand hand) implements CustomPacketPayload {

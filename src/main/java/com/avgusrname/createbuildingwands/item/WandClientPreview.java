@@ -1,12 +1,10 @@
-package com.avgusrname.createbuildingwands.item.custom;
+package com.avgusrname.createbuildingwands.item;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
-import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
+import com.avgusrname.createbuildingwands.util.BlockPlaceHelper;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -73,7 +71,7 @@ public class WandClientPreview {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
 
-        if (level == null || event.getEntity() == null || activeStartPos == null || activeMode == null) {
+        if (level == null || activeStartPos == null || activeMode == null) {
             return;
         }
 
@@ -86,22 +84,12 @@ public class WandClientPreview {
 
             BlockPos currentEndPos = clickedPos.relative(face);
 
-            List<BlockPos> calculatedPositions;
-
-            switch (activeMode) {
-                case PLANE:
-                    calculatedPositions = WandGeometryUtil.planeBlockPositions(activeStartPos, currentEndPos, face);
-                    break;
-                case CUBE:
-                    calculatedPositions = WandGeometryUtil.cubeBlockPositions(activeStartPos, currentEndPos);
-                    break;
-                case LINE:
-                    calculatedPositions = WandGeometryUtil.lineBlockPositions(activeStartPos, currentEndPos);
-                    break;
-                default:
-                    calculatedPositions = Collections.emptyList();
-                    break;
-            }
+            List<BlockPos> calculatedPositions = switch (activeMode) {
+                case PLANE -> BlockPlaceHelper.planeBlockPositions(activeStartPos, currentEndPos, face);
+                case CUBE -> BlockPlaceHelper.cubeBlockPositions(activeStartPos, currentEndPos);
+                case LINE -> BlockPlaceHelper.lineBlockPositions(activeStartPos, currentEndPos);
+                default -> Collections.emptyList();
+            };
 
             setPreviewPositions(calculatedPositions);
         }
@@ -138,9 +126,7 @@ public class WandClientPreview {
         BlockState stateToRender = null;
         if (previewBlock != null && !previewBlock.isEmpty()) {
             Block block = Block.byItem(previewBlock.getItem());
-            if (block != null) {
-                stateToRender = block.defaultBlockState();
-            }
+            stateToRender = block.defaultBlockState();
         }
 
         BlockRenderDispatcher dispatcher = mc.getBlockRenderer();

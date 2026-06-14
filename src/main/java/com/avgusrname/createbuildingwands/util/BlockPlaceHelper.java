@@ -5,9 +5,8 @@ import net.minecraft.core.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
-public class WandGeometryUtil {
+public class BlockPlaceHelper {
     
     public static List<BlockPos> lineBlockPositions(BlockPos start, BlockPos end) {
         List<BlockPos> positions = new ArrayList<>();
