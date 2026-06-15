@@ -1,6 +1,7 @@
 package com.avgusrname.createbuildingwands;
 
 
+import com.avgusrname.createbuildingwands.item.ModItems;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.*;
 import com.avgusrname.createbuildingwands.networking.packet.*;
 import org.slf4j.Logger;
@@ -30,7 +31,7 @@ public class CreateBuildingWands {
     public CreateBuildingWands(IEventBus modEventBus) {
         ModCreativeModeTabs.register(modEventBus);
 
-        AllItems.ITEMS.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
         ModDataComponents.register(modEventBus);
         ModMenuTypes.register(modEventBus);
         LOGGER.info("Hello from Create Building Wands!");
@@ -89,17 +90,11 @@ public class CreateBuildingWands {
                 CornerTogglePacket.CODEC, 
                 (payload, context) -> context.enqueueWork(() -> {
                     Player player = context.player();
-                    CreateBuildingWands.LOGGER.info("[WandDebug] Server received packet payload for Corner Ordinal: {}", payload.cornerOrdinal(), player.getName().getString());
 
                     if (player.containerMenu instanceof ByteConfigMenu menu) {
-                        CreateBuildingWands.LOGGER.info("[WandDebug] Valid container match found! Passing execution to handleServerToggle.");
-
-                        ByteCornerData.Corner targetCorner = ByteCornerData.Corner.values()[payload.cornerOrdinal()];
-
-                        menu.handleServerToggle(targetCorner);
-                    }
-                    else {
-                        CreateBuildingWands.LOGGER.warn("[WandDebug] Packet dropped! Player container menu is NOT an instance of ByteConfigMenu. Active Container: {}", player.containerMenu.getClass().getSimpleName());
+                        menu.handleServerToggle(payload.cornerOrdinal());
+                    } else {
+                        CreateBuildingWands.LOGGER.warn("Packet dropped! Player container menu is NOT instance of ByteConfigMenu. Active Container: {}", player.containerMenu.getClass().getSimpleName());
                     }
                 })
             );

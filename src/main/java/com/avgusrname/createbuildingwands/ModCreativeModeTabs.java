@@ -1,5 +1,6 @@
 package com.avgusrname.createbuildingwands;
 
+import com.avgusrname.createbuildingwands.item.ModItems;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -15,10 +16,10 @@ public class ModCreativeModeTabs {
     
     public static final Supplier<CreativeModeTab> WANDS_TAB = CREATIVE_MODE_TAB.register("wands_tab", 
             () -> CreativeModeTab.builder()
-                .icon(() -> new ItemStack(AllItems.ANDESITE_WAND.get()))
+                .icon(() -> new ItemStack(ModItems.ANDESITE_WAND.get()))
                 .title(Component.translatable("creativetab.createbuildingwands.wands"))
                 .displayItems((itemDisplayParameters, output) -> {
-                    output.accept(AllItems.ANDESITE_WAND);
+                    output.accept(ModItems.ANDESITE_WAND);
                 })
                 .build()
     );

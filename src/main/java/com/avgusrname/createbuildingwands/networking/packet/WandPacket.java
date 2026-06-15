@@ -65,11 +65,7 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
             }
             case OPEN_BYTE_CONFIG_MENU -> {
                 if (player.containerMenu instanceof ByteConfigMenu byteMenu) {
-                    ByteCornerData.Corner corner = ByteCornerData.Corner.values()[payload.value];
-
-                    CreateBuildingWands.LOGGER.info("[WandPacket handleOnServer] value of corner is: {}", corner);
-                    CreateBuildingWands.LOGGER.info("[WandPacket handleOnServer] current active server menu is byteconfigmenu");
-                    byteMenu.handleServerToggle(corner);
+                    byteMenu.handleServerToggle(payload.value());
                 } else if (player instanceof ServerPlayer serverPlayer) {
                     serverPlayer.openMenu(new MenuProvider() {
                         @Override

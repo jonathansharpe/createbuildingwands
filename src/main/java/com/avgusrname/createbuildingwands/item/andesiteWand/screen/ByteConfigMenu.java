@@ -3,8 +3,13 @@ package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 
+import com.copycatsplus.copycats.CCBlocks;
+import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
+import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import com.simibubi.create.AllBlocks;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.util.datafix.fixes.ItemStackTagFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -17,13 +22,18 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockSetType;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+
 public class ByteConfigMenu extends AbstractContainerMenu {
     private final InteractionHand wandHand;
     private final ItemStack wandItem;
+    private final Player player;
 
     public static final int BTN_WIDTH = 95;
     public static final int BTN_HEIGHT = 20;
@@ -34,10 +44,22 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     public static final int PANEL_INNER_X = 12;
     public static final int PANEL_INNER_Y = 18;
 
+    public static final List<String> ORDERED_KEYS = List.of(
+            CopycatByteBlock.BOTTOM_NW.getName(),
+            CopycatByteBlock.BOTTOM_NE.getName(),
+            CopycatByteBlock.BOTTOM_SW.getName(),
+            CopycatByteBlock.BOTTOM_SE.getName(),
+            CopycatByteBlock.TOP_NW.getName(),
+            CopycatByteBlock.TOP_NE.getName(),
+            CopycatByteBlock.TOP_SW.getName(),
+            CopycatByteBlock.TOP_SE.getName()
+    );
+
     public ByteConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
         super(ModMenuTypes.BYTE_CONFIG_MENU.get(), pContainerId);
         this.wandHand = pHand;
         this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
+        this.player = pPlayerInventory.player;
 
         // registers the container slots
         for (int i = 0; i < 8; i++) {
@@ -50,24 +72,24 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         if (!this.wandItem.isEmpty()) {
             WandMaterialComponent materialComponent = this.wandItem.getOrDefault(
                     ModDataComponents.WAND_MATERIALS.get(),
-                    WandMaterialComponent.createEmptyDefault()
+                    WandMaterialComponent.createEmpty()
             );
 
             if (!this.wandItem.has(ModDataComponents.WAND_MATERIALS.get())) {
                 this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(), materialComponent);
             }
 
-            for (ByteCornerData.Corner corner : ByteCornerData.Corner.values()) {
-                int slotIndex = corner.ordinal();
-                ByteCornerData cornerData = materialComponent.corners().get(slotIndex);
+            MaterialItemStorage storage = materialComponent.toStorage(player.level().registryAccess());
 
-                Item itemToStore = cornerData.material().getBlock().asItem();
-                if (itemToStore == Items.AIR) {
-                    continue;
-                }
-                ItemStack stackToStore = new ItemStack(itemToStore);
+            for (int i = 0; i < ORDERED_KEYS.size(); i++) {
+                MaterialItemStorage.MaterialItem materialItem = storage.getMaterialItem(ORDERED_KEYS.get(i));
+                if (materialItem == null) continue;
 
-                byteSlotHandler.setStackInSlot(slotIndex, stackToStore);
+                Item itemToStore = materialItem.consumedItem().getItem();
+                // TODO may need to adjust this statement
+                if (itemToStore == Items.AIR || materialItem.consumedItem().isEmpty()) continue;
+
+                byteSlotHandler.setStackInSlot(i, materialItem.consumedItem().copy());
             }
 
             this.broadcastChanges();
@@ -89,16 +111,10 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     private final ItemStackHandler byteSlotHandler = new ItemStackHandler(8) {
         @Override
         protected void onContentsChanged(int slot) {
-            // get the item of whatever is stored in the slot
             ItemStack storedStack = getStackInSlot(slot);
+            String propertyKey = ORDERED_KEYS.get(slot);
 
-            // get the corner based on the slot given
-            ByteCornerData.Corner corner = ByteCornerData.Corner.values()[slot];
-
-            // save the new material to that corner
-            ByteConfigMenu.this.saveSlotMaterialToWand(corner, storedStack);
-
-            CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu onContentsChanged] contents have been changed, slot is {}", slot);
+            ByteConfigMenu.this.saveSlotMaterialToWand(propertyKey, storedStack);
 
             ByteConfigMenu.this.broadcastChanges();
         }
@@ -151,7 +167,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         if (slotId >= 0 && slotId < 8) {
             Slot targetslot = this.slots.get(slotId);
             ItemStack carriedStack = this.getCarried();
-            ByteCornerData.Corner corner = ByteCornerData.Corner.values()[slotId];
+            String propertyKey = ORDERED_KEYS.get(slotId);
 
             if (!carriedStack.isEmpty() && carriedStack.getItem() instanceof BlockItem blockItem) {
                 if (clickType == ClickType.CLONE || clickType == ClickType.SWAP || clickType == ClickType.THROW) {
@@ -163,18 +179,15 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
                 byteSlotHandler.setStackInSlot(slotId, ghostCopy);
                 targetslot.setChanged();
+                this.saveSlotMaterialToWand(propertyKey, ghostCopy);
 
-                this.saveSlotMaterialToWand(corner, ghostCopy);
-
-                CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu.clicked] Configured corner {} with material item: {}", corner.name(), ghostCopy.getHoverName().getString());
                 return;
             } else if (carriedStack.isEmpty() && !targetslot.getItem().isEmpty()) {
                 byteSlotHandler.setStackInSlot(slotId, ItemStack.EMPTY);
                 targetslot.setChanged();
 
-                this.saveSlotMaterialToWand(corner, ItemStack.EMPTY);
+                this.saveSlotMaterialToWand(propertyKey, ItemStack.EMPTY);
 
-                CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigMenu.clicked] cleared material for corner {}", corner.name());
                 return;
             }
             return;
@@ -214,16 +227,22 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         return ItemStack.EMPTY;
     }
 
-    public void handleServerToggle(ByteCornerData.Corner corner) {
+    public void handleServerToggle(int slotId) {
         if (!this.wandItem.isEmpty()) {
-            WandMaterialComponent currentData = this.wandItem.getOrDefault(
+
+            String propertyKey = ORDERED_KEYS.get(slotId);
+
+            WandMaterialComponent current = this.wandItem.getOrDefault(
                     ModDataComponents.WAND_MATERIALS.get(),
-                    WandMaterialComponent.createEmptyDefault()
+                    WandMaterialComponent.createEmpty()
             );
 
-            WandMaterialComponent updatedData = currentData.withToggledCorner(corner.ordinal());
+            BooleanProperty prop = CopycatByteBlock.byByte(CopycatByteBlock.byteMap.get(propertyKey));
+            boolean currentlyActive = current.cornerState().getValue(prop);
 
-            this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(), updatedData);
+            WandMaterialComponent updated = current.withCornerActive(propertyKey, !currentlyActive);
+
+            this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(), updated);
 
             this.broadcastChanges();
         }
@@ -267,51 +286,29 @@ public class ByteConfigMenu extends AbstractContainerMenu {
      * @param corner the corner to modify the data of
      * @param newConsumedItem the item stack representing the block to use as a material texture
      */
-    private void saveSlotMaterialToWand(ByteCornerData.Corner corner, ItemStack newConsumedItem) {
-        if (!this.wandItem.isEmpty()) {
-            WandMaterialComponent currentData = this.wandItem.getOrDefault(
-                    ModDataComponents.WAND_MATERIALS.get(),
-                    WandMaterialComponent.createEmptyDefault()
-            );
-            int index = corner.ordinal();
-            ByteCornerData oldCorner = currentData.corners().get(index);
-            boolean consumeItem = true;
+    private void saveSlotMaterialToWand(String propertyKey, ItemStack newConsumedItem) {
+        if (this.wandItem.isEmpty()) return;
 
-            if (!newConsumedItem.isEmpty()) {
-                for (int i = 0; i < currentData.corners().size(); i++) {
-                    if (i != index) {
-                        ItemStack existingItem = currentData.corners().get(i).consumedItem();
-                        if (!existingItem.isEmpty() && ItemStack.isSameItem(existingItem, newConsumedItem)) {
-                            CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] material already exists inside copycat, will not consume any more items");
+        WandMaterialComponent current = wandItem.getOrDefault(
+                ModDataComponents.WAND_MATERIALS.get(),
+                WandMaterialComponent.createEmpty()
+        );
 
-                            consumeItem = false;
-                            break;
-                        }
-                    }
-                }
-            }
+        HolderLookup.Provider registries = player.level().registryAccess();
+        MaterialItemStorage storage = current.toStorage(registries);
 
-            BlockState newMaterialState = AllBlocks.COPYCAT_BASE.getDefaultState();
-            if (!newConsumedItem.isEmpty() && newConsumedItem.getItem() instanceof BlockItem blockItem) {
-                newMaterialState = blockItem.getBlock().defaultBlockState();
-            }
-
-            if (!consumeItem) {
-                newConsumedItem = ItemStack.EMPTY;
-            }
-
-            ByteCornerData updatedCorner = new ByteCornerData(
-                    newMaterialState,
-                    oldCorner.enableCT(),
-                    newConsumedItem.copy(),
-                    true
-            );
-
-            WandMaterialComponent updatedComponent = currentData.withCorner(index, updatedCorner);
-            this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(), updatedComponent);
-            CreateBuildingWands.LOGGER.info("[WandDebug saveSlotMaterialToWand] wand material data is: {}", this.wandItem.getComponents());
-
-            this.broadcastChanges();
+        BlockState newMaterial = AllBlocks.COPYCAT_BASE.getDefaultState();
+        if (!newConsumedItem.isEmpty() && newConsumedItem.getItem() instanceof BlockItem blockItem) {
+            newMaterial = blockItem.getBlock().defaultBlockState();
         }
+
+        storage.storeMaterialItem(propertyKey, new MaterialItemStorage.MaterialItem(newMaterial, newConsumedItem.isEmpty() ? ItemStack.EMPTY : newConsumedItem.copyWithCount(1)));
+
+        BlockState newCornerState = current.cornerState();
+
+        this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
+                WandMaterialComponent.fromStorage(storage, newCornerState, registries));
+
+        this.broadcastChanges();
     }
 }

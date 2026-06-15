@@ -3,6 +3,8 @@ package com.avgusrname.createbuildingwands.item.andesiteWand;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ByteCornerData;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
+import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
+import net.minecraft.client.resources.model.Material;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -212,32 +214,6 @@ public class AndesiteWandItem extends Item {
         return successfulPlacement ? InteractionResult.CONSUME : InteractionResult.FAIL;
     }
 
-    private String getPropertyKeyFromCorner(ByteCornerData.Corner corner) {
-        return switch(corner) {
-            case BOTTOM_NW -> "bottom_northwest";
-            case BOTTOM_NE -> "bottom_northeast";
-            case BOTTOM_SW -> "bottom_southwest";
-            case BOTTOM_SE -> "bottom_southeast";
-            case TOP_NW    -> "top_northwest";
-            case TOP_NE    -> "top_northeast";
-            case TOP_SW    -> "top_southwest";
-            case TOP_SE    -> "top_southeast";
-        };
-    }
-
-    private BooleanProperty getPropFromCorner(ByteCornerData.Corner corner) {
-        return switch(corner) {
-            case BOTTOM_NW -> CopycatByteBlock.BOTTOM_NW;
-            case BOTTOM_NE -> CopycatByteBlock.BOTTOM_NE;
-            case BOTTOM_SW -> CopycatByteBlock.BOTTOM_SW;
-            case BOTTOM_SE -> CopycatByteBlock.BOTTOM_SE;
-            case TOP_NW    -> CopycatByteBlock.TOP_NW;
-            case TOP_NE    -> CopycatByteBlock.TOP_NE;
-            case TOP_SW    -> CopycatByteBlock.TOP_SW;
-            case TOP_SE    -> CopycatByteBlock.TOP_SE;
-        };
-    }
-
     private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
         //CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
         if (!level.getBlockState(pos).canBeReplaced()) return false;
@@ -250,15 +226,17 @@ public class AndesiteWandItem extends Item {
             return level.setBlock(pos, stateToPlace, Block.UPDATE_ALL);
         }
         WandMaterialComponent materialComponent = player.getItemInHand(InteractionHand.MAIN_HAND)
-                .getOrDefault(ModDataComponents.WAND_MATERIALS.get(),WandMaterialComponent.createEmptyDefault());
+                .getOrDefault(ModDataComponents.WAND_MATERIALS.get(),WandMaterialComponent.createEmpty());
 
         BlockState finalStateToPlace = stateToPlace;
 
-        for (ByteCornerData.Corner corner : ByteCornerData.Corner.values()) {
-            finalStateToPlace = finalStateToPlace.setValue(
-                    getPropFromCorner(corner),
-                    materialComponent.corners().get(corner.ordinal()).isActive()
-            );
+        for (BooleanProperty prop : List.of(
+                CopycatByteBlock.BOTTOM_NW, CopycatByteBlock.BOTTOM_NE,
+                CopycatByteBlock.BOTTOM_SW, CopycatByteBlock.BOTTOM_SE,
+                CopycatByteBlock.TOP_NW, CopycatByteBlock.TOP_NE,
+                CopycatByteBlock.TOP_SW, CopycatByteBlock.TOP_SE
+        )) {
+            finalStateToPlace = finalStateToPlace.setValue(prop, materialComponent.cornerState().getValue(prop));
         }
 
         BlockState oldState = level.getBlockState(pos);
@@ -269,16 +247,14 @@ public class AndesiteWandItem extends Item {
 
         copycatMock.init();
 
-        for (ByteCornerData.Corner corner : ByteCornerData.Corner.values()) {
-            ByteCornerData cornerData = materialComponent.corners().get(corner.ordinal());
-            if (!cornerData.isActive()) continue;
+        MaterialItemStorage wandStorage = materialComponent.toStorage(player.level().registryAccess());
+        MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
 
-            String propertyKey = getPropertyKeyFromCorner(corner);
-            //CreateBuildingWands.LOGGER.info("Setting material for key: {} to: {}", propertyKey, cornerData.material());
-
-            copycatMock.setMaterial(propertyKey, cornerData.material());
-            copycatMock.setConsumedItem(propertyKey, cornerData.consumedItem());
-            copycatMock.setEnableCT(propertyKey, cornerData.enableCT());
+        for (String key : wandStorage.getAllProperties()) {
+            MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
+            if (item != null && item.hasCustomMaterial()) {
+                beStorage.storeMaterialItem(key, item);
+            }
         }
 
         //CreateBuildingWands.LOGGER.info("BE materials IMMEDIATELY after loop: {}", copycatMock.getMaterialItemStorage().getAllMaterials());
