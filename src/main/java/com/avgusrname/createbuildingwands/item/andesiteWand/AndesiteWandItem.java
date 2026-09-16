@@ -1,10 +1,8 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand;
 
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ByteCornerData;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
-import net.minecraft.client.resources.model.Material;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -49,6 +47,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
+// SPAGHETTI
 public class AndesiteWandItem extends Item {
 
     public AndesiteWandItem(Properties properties) {
@@ -120,8 +119,13 @@ public class AndesiteWandItem extends Item {
         }
     }
 
+    /**
+     * right click while looking at a block
+     * TODO find a way to extend reach, at a configurable distance like with effortless
+     * @param pContext the context needed to do the thing
+     * @return the result of the interaction
+     */
     @Override
-    // TODO find a way to extend reach, at a configurable distance like with effortless
     public @NotNull InteractionResult useOn(UseOnContext pContext) {
         // the Level type is seemingly the entire dimension that a player is in. it has fields like max size, world border, etc. i guess we need that so we can place blocks in the world
         Level level = pContext.getLevel();
@@ -214,6 +218,18 @@ public class AndesiteWandItem extends Item {
         return successfulPlacement ? InteractionResult.CONSUME : InteractionResult.FAIL;
     }
 
+    /**
+     * places a block! who knew it could be so complicated?
+     * @param level the minecraft world
+     * @param player the player holding the wand
+     * @param pos the position at which the block will be placed
+     * @param block the block to place, could be a block, stair, slab, or copycat
+     * @param material the material that is used if a copycat is in the main block slot. can never be a copycat, because if you do it crashes the game
+     * @param isCopycat is the first slot a copycat or not?
+     * @param clickedFace the face at which the click is performed, used to determine direction for slabs/stairs
+     * @param originalContext needed to make the placement of copycats work
+     * @return true if the block placed, false if not
+     */
     private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
         //CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
         if (!level.getBlockState(pos).canBeReplaced()) return false;
@@ -283,7 +299,7 @@ public class AndesiteWandItem extends Item {
      * @param player player holding the wand
      * @param wand wand held by the player
      * @param context context or something
-     * @return if the placement is completed successfully
+     * @return true if the placement succeeded, false if not
      */
     private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
         boolean result = false;

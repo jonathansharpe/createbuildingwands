@@ -93,9 +93,10 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         );
     }
 
-    // when the mode scroll widget is scrolled, this function is called
-    // handles the logic for selecting the wand mode
-    // involves sending a packet to the server to set the wand mode
+    /**
+     * handles setting the new mode on the server when the scroll widget is interacted with
+     * @param newIndex the index for the new option to be updated to
+     */
     private void onModeScroll(int newIndex) {
         WandMode selectedMode = WandMode.values()[newIndex];
         InteractionHand hand = this.menu.getWandHand();

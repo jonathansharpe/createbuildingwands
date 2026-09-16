@@ -67,6 +67,12 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 		super.render(guiGraphics, mouseX, mouseY, partialTick);
 	}
 
+	/**
+	 * converts the form of a cardinal direction to another, like "bottom_northwest" to "Bottom NW"
+	 * @param key property form of the cardinal direction
+	 * @return returns key to be correctly text formatted
+	 */
+
 	private String formatKeyName(String key) {
 		// e.g. "bottom_northwest" -> "Bottom NW"
 		return switch (key) {
@@ -82,6 +88,9 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 		};
 	}
 
+	/**
+	 * updates the messages on the buttons
+	 */
 	private void updateButtonMessages() {
 		// INFO any log messages in this function will be called a LOT, like once every second, so log carefully
 		// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] updateButtonMessages called");

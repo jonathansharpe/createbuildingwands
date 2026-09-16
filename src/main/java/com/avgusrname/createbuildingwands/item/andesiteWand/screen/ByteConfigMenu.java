@@ -3,7 +3,6 @@ package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 
-import com.copycatsplus.copycats.CCBlocks;
 import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import com.simibubi.create.AllBlocks;
@@ -55,6 +54,12 @@ public class ByteConfigMenu extends AbstractContainerMenu {
             CopycatByteBlock.TOP_SE.getName()
     );
 
+    /**
+     * creates a container to store the information for the
+     * @param pContainerId
+     * @param pPlayerInventory
+     * @param pHand
+     */
     public ByteConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
         super(ModMenuTypes.BYTE_CONFIG_MENU.get(), pContainerId);
         this.wandHand = pHand;
@@ -150,6 +155,11 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         }
     };
 
+    /**
+     * gets a number so it can draw the 8 possible config slots on screen
+     * @param index where we are in the list of items
+     * @return array of the coordinates for where the slot should be drawn
+     */
     public static int[] getComponentCoordinates(int index) {
         int row = index % 4;
         int col = index / 4;
@@ -196,11 +206,12 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     // TODO fix the below method
+    // TODO why am i fixing this? it works fine
 
     /**
      * what happens when a player shift clicks an item
-     * @param player
-     * @param index
+     * @param player the player obvs
+     * @param index the slot to put the block into
      * @return
      */
     @Override
@@ -227,6 +238,10 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         return ItemStack.EMPTY;
     }
 
+    /**
+     * toggling a slot on the server
+     * @param slotId the slot to toggle
+     */
     public void handleServerToggle(int slotId) {
         if (!this.wandItem.isEmpty()) {
 

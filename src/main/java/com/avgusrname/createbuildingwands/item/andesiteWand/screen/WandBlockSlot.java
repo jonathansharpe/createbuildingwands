@@ -6,6 +6,9 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
+/**
+ * i'm not entirely sure why this is its own class, but i guess separates it helps with using it elsewhere. i think i wanted to replace the slot in the other menus with this but idk if thats best practice or not
+ */
 public class WandBlockSlot extends SlotItemHandler {
     public WandBlockSlot(IItemHandler itemHandler, int index, int xPosition, int yPosition) {
         super(itemHandler, index, xPosition, yPosition);

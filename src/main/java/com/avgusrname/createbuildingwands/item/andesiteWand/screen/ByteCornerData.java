@@ -6,6 +6,13 @@ import com.simibubi.create.AllBlocks;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
+/**
+ * the bit of data that stores the data that determines the look of the copycat
+ * @param material what material the corner of the byte is. this will always have a value, default copycatbase
+ * @param enableCT if connected textures are enabled, default yes
+ * @param consumedItem what item is consumed in that corner. if the same block has two corners with the same material, only one of the item will be consumed
+ * @param isActive if the corner is active
+ */
 public record ByteCornerData(BlockState material, boolean enableCT, ItemStack consumedItem, boolean isActive) {
     public static final Codec<ByteCornerData> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
