@@ -159,8 +159,8 @@ public class AndesiteWandItem extends Item {
                     WandClientPreview.updateActiveState(startPosClient, currentModeClient);
 
                     // Prefer copycat block for preview if set, otherwise use regular block
-                    Block copycat = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
-                    Block regular = heldWand.get(ModDataComponents.WAND_BLOCK.get());
+                    Block copycat = heldWand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+                    Block regular = heldWand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
 
                     CreateBuildingWands.LOGGER.info("regular block is: {}", regular);
                     
@@ -184,8 +184,8 @@ public class AndesiteWandItem extends Item {
 
         // Prefer copycat block if set, otherwise use regular block
         WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
-        Block copycatBlock = heldWand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
-        Block overrideMaterial = heldWand.get(ModDataComponents.WAND_BLOCK.get());
+        Block copycatBlock = heldWand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+        Block overrideMaterial = heldWand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
 
         CreateBuildingWands.LOGGER.info("overrideMaterial (material to apply to copycat) is: {}", overrideMaterial);
 
@@ -309,8 +309,8 @@ public class AndesiteWandItem extends Item {
         if (!level.isClientSide) {
             BlockPos clickedPos = context.getClickedPos();
             Direction face = context.getClickedFace();
-            Block storedRegularBlock = wand.get(ModDataComponents.WAND_BLOCK.get());
-            Block storedCopycatBlock = wand.get(ModDataComponents.WAND_COPYCAT_BLOCK.get());
+            Block storedRegularBlock = wand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
+            Block storedCopycatBlock = wand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
             if (storedRegularBlock == null) {
                 if (storedCopycatBlock != null) {
                     player.displayClientMessage(Component.literal("Utilizing copycat config for block placement").withStyle(ChatFormatting.YELLOW), true);

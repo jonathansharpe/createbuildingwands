@@ -25,9 +25,9 @@ public class ModDataComponents {
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockPos>> WAND_START_POS = register("wand_start_pos", builder -> builder.persistent(BlockPos.CODEC));
 
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_BLOCK = register("wand_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_BLOCK_REGULAR = register("wand_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
 
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_COPYCAT_BLOCK = register("wand_copycat_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Block>> WAND_BLOCK_COPYCAT = register("wand_copycat_block", builder -> builder.persistent(BuiltInRegistries.BLOCK.byNameCodec()));
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<WandMaterialComponent>> WAND_MATERIALS =
             register("wand_materials", builder -> builder
