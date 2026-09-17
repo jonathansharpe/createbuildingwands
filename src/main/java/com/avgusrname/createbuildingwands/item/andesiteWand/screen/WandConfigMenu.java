@@ -3,6 +3,9 @@ package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.datafix.fixes.ItemStackTagFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
@@ -10,7 +13,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.EmptyBlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.Block;
@@ -25,6 +31,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
 
     private final InteractionHand wandHand;
     private final ItemStack wandItem;
+    private final Player player;
 
     private final int initialModeIndex;
 
@@ -50,6 +57,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
         // sets some important stuff passed through the parameters
         this.wandHand = pHand;
         this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
+        this.player = pPlayerInventory.player;
 
         // this will set the wand mode in the menu to be what it is from the data components, or set a default value of SINGLE if there is none (like when the wand is used for the first time)
         WandMode currentMode = this.wandItem.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
@@ -113,7 +121,13 @@ public class WandConfigMenu extends AbstractContainerMenu{
         public boolean isItemValid(int slot, ItemStack stack) {
             if (!(stack.getItem() instanceof BlockItem blockItem)) return false;
             Block block = blockItem.getBlock();
-            return !(block instanceof ICopycatBlock) && !(block instanceof CopycatBlock);
+            if (block instanceof ICopycatBlock || block instanceof CopycatBlock) return false;
+
+            if (wandItem.has(ModDataComponents.WAND_BLOCK_COPYCAT.get()) && !isFullBlock(block)) {
+                player.displayClientMessage(Component.literal("Copycat blocks require a full block material").withStyle(ChatFormatting.RED), true);
+                return false;
+            }
+            return true;
         }
 
         @Override
@@ -162,7 +176,14 @@ public class WandConfigMenu extends AbstractContainerMenu{
         public boolean isItemValid(int slot, ItemStack stack) {
             if (!(stack.getItem() instanceof BlockItem blockItem)) return false;
             Block block = blockItem.getBlock();
-            return block instanceof ICopycatBlock || block instanceof CopycatBlock;
+            if (!(block instanceof ICopycatBlock || block instanceof CopycatBlock)) return false;
+
+            ItemStack regularWandStack = regularSlotHandler.getStackInSlot(0);
+            if (!regularWandStack.isEmpty() && regularWandStack.getItem() instanceof BlockItem regularBlockItem && !isFullBlock(regularBlockItem.getBlock())) {
+                player.displayClientMessage(Component.literal("Cannot use copycat block with non-full block.").withStyle(ChatFormatting.RED), true);
+                return false;
+            }
+            return true;
         }
 
         @Override
@@ -218,7 +239,6 @@ public class WandConfigMenu extends AbstractContainerMenu{
             }
             // due to the above if statement we already know that carriedStack is empty, so we can just extract the item from the slot
             else if (!wandSlot.getItem().isEmpty()) {
-                // TODO THIS DOESN'T WORK FOR SOME REASON
                 regularSlotHandler.extractItem(slotId, 1, false);
                 wandSlot.setChanged();
 
@@ -256,6 +276,12 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
         super.clicked(slotId, button, clickType, player);
 
+    }
+
+    private static boolean isFullBlock(Block block) {
+        BlockState state = block.defaultBlockState();
+        CreateBuildingWands.LOGGER.info("Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)): {}", Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)));
+        return Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
     }
 
     // getters and setters
@@ -326,15 +352,14 @@ public class WandConfigMenu extends AbstractContainerMenu{
             if (this.copycatSlotHandler.isItemValid(0, stackToMove)) {
                 if (this.slots.get(COPYCAT_WAND_SLOT).getItem().isEmpty()) {
                     this.copycatSlotHandler.insertItem(0, stackToMove, false);
-                    return originalStack;
+                    this.broadcastChanges();
                 }
             } else {
                 if (this.slots.get(REGULAR_WAND_SLOT).getItem().isEmpty()) {
                     this.regularSlotHandler.insertItem(0, stackToMove, false);
-                    return originalStack;
+                    this.broadcastChanges();
                 }
             }
-            return ItemStack.EMPTY;
         }
         return ItemStack.EMPTY;
     }
