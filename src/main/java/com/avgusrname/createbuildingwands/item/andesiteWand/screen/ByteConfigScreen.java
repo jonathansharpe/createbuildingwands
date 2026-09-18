@@ -35,7 +35,7 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 		this.renderables.clear();
 
 		for (int i = 0; i < 8; i++) {
-			int[] coords = ByteConfigMenu.getComponentCoordinates(i);
+			int[] coords = this.menu.getComponentCoordinates(i);
 
 			int absoluteBtnX = this.leftPos + coords[0];
 			int absoluteBtnY = this.topPos + coords[1];
@@ -101,10 +101,8 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 		ItemStack syncedWand = this.minecraft.player.getItemInHand(this.menu.getWandHand());
 		WandMaterialComponent materialComponent = syncedWand.getOrDefault(
 				ModDataComponents.WAND_MATERIALS.get(),
-				WandMaterialComponent.createEmpty()
+				WandMaterialComponent.createEmptyDefault()
 		);
-
-		BlockState cornerState = materialComponent.cornerState();
 
 		for (int i = 0; i < 8; i++) {
 			Button btn = this.cornerButtons[i];
@@ -112,7 +110,7 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 
 			String key = ByteConfigMenu.ORDERED_KEYS.get(i);
 			BooleanProperty prop = CopycatByteBlock.byByte(CopycatByteBlock.byteMap.get(key));
-			boolean isActive = cornerState.getValue(prop);
+			boolean isActive = materialComponent.isActive(key);
 
 			btn.setMessage(Component.literal(formatKeyName(key) + (isActive ? ": ON" : ": OFF")));
 		}

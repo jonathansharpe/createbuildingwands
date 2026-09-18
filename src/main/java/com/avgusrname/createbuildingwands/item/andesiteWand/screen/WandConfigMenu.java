@@ -4,25 +4,21 @@ import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.datafix.fixes.ItemStackTagFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.EmptyBlockGetter;
-import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.Block;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.WandMode;
+import com.avgusrname.createbuildingwands.util.WandUtils;
 
 import net.minecraft.network.FriendlyByteBuf;
 import org.jetbrains.annotations.NotNull;
@@ -117,19 +113,32 @@ public class WandConfigMenu extends AbstractContainerMenu{
             WandConfigMenu.this.broadcastChanges();
         }
 
+        /**
+         * determines if the item about to be inserted is actually a valid item for the slot. THIS IS EXTREMELY IMPORTANT FOR FILTERING OUT VALID/INVALID ITEMS. this one rejects any copycat blocks, or any non-full blocks if a copycat block already exists in the copycat slot, and also if its just not a block
+         * @param slot the slot that the item will check insertion for
+         * @param stack the stack to attempt insertion for
+         * @return true if item can be inserted, false if not
+         */
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (!(stack.getItem() instanceof BlockItem blockItem)) return false;
             Block block = blockItem.getBlock();
             if (block instanceof ICopycatBlock || block instanceof CopycatBlock) return false;
 
-            if (wandItem.has(ModDataComponents.WAND_BLOCK_COPYCAT.get()) && !isFullBlock(block)) {
+            if (wandItem.has(ModDataComponents.WAND_BLOCK_COPYCAT.get()) && !WandUtils.isFullBlock(block)) {
                 player.displayClientMessage(Component.literal("Copycat blocks require a full block material").withStyle(ChatFormatting.RED), true);
                 return false;
             }
             return true;
         }
 
+        /**
+         * inserts an item into a slot. the override is necessary so the item is not consumed when inserted, merely that the data is copied so the wand knows what blocks to place. the items will be consumed upon placing.
+         * @param slot the slot insertion is attempted in
+         * @param stack the stack to attempt insertion with
+         * @param simulate if we're simulating insertion or not (useful for testing i'm guestting)
+         * @return the stack that is inserted; empty if it fails, the stack in the parameter if it succeeds
+         */
         @Override
         public @NotNull ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) return stack;
@@ -142,11 +151,15 @@ public class WandConfigMenu extends AbstractContainerMenu{
             return stack;
         }
 
+        /**
+         * clears the slot of any items in it. again no actual items are moved between the player and wand, it just clears the stored data
+         * @param slot the slot to extract the item from
+         * @param amount the amount to extract, even though i dont think its actually used it needs to exist to override a super class method
+         * @param simulate simulating extraction or not
+         * @return will always be empty because nothing is given back to the player since nothing was taken in the first place
+         */
         @Override
         public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
-
-            CreateBuildingWands.LOGGER.info("Wand Slot extractItem() called: Clearing reference slot.");
-
             if (!this.getStackInSlot(slot).isEmpty()) {
                 if (!simulate) {
                     this.setStackInSlot(slot, ItemStack.EMPTY);
@@ -172,6 +185,12 @@ public class WandConfigMenu extends AbstractContainerMenu{
             WandConfigMenu.this.broadcastChanges();
         }
 
+        /**
+         *  checks if the given item is a valid copycat item, for use before insertion. currently rejects any non-copycat block
+         * @param slot the slot to attempt insertion into
+         * @param stack the stack to check
+         * @return true if the item is valid, false if it isn't
+         */
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             if (!(stack.getItem() instanceof BlockItem blockItem)) return false;
@@ -179,7 +198,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
             if (!(block instanceof ICopycatBlock || block instanceof CopycatBlock)) return false;
 
             ItemStack regularWandStack = regularSlotHandler.getStackInSlot(0);
-            if (!regularWandStack.isEmpty() && regularWandStack.getItem() instanceof BlockItem regularBlockItem && !isFullBlock(regularBlockItem.getBlock())) {
+            if (!regularWandStack.isEmpty() && regularWandStack.getItem() instanceof BlockItem regularBlockItem && !WandUtils.isFullBlock(regularBlockItem.getBlock())) {
                 player.displayClientMessage(Component.literal("Cannot use copycat block with non-full block.").withStyle(ChatFormatting.RED), true);
                 return false;
             }
@@ -276,12 +295,6 @@ public class WandConfigMenu extends AbstractContainerMenu{
         }
         super.clicked(slotId, button, clickType, player);
 
-    }
-
-    private static boolean isFullBlock(Block block) {
-        BlockState state = block.defaultBlockState();
-        CreateBuildingWands.LOGGER.info("Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)): {}", Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)));
-        return Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
     }
 
     // getters and setters

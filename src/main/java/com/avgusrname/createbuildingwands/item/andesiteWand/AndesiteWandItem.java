@@ -2,6 +2,7 @@ package com.avgusrname.createbuildingwands.item.andesiteWand;
 
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
+import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -41,11 +42,13 @@ import com.avgusrname.createbuildingwands.item.WandClientPreview;
 import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.util.BlockPlaceHelper;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 // SPAGHETTI
 public class AndesiteWandItem extends Item {
@@ -242,18 +245,30 @@ public class AndesiteWandItem extends Item {
             return level.setBlock(pos, stateToPlace, Block.UPDATE_ALL);
         }
         WandMaterialComponent materialComponent = player.getItemInHand(InteractionHand.MAIN_HAND)
-                .getOrDefault(ModDataComponents.WAND_MATERIALS.get(),WandMaterialComponent.createEmpty());
+                .getOrDefault(ModDataComponents.WAND_MATERIALS.get(),WandMaterialComponent.createEmptyDefault());
 
         BlockState finalStateToPlace = stateToPlace;
 
-        for (BooleanProperty prop : List.of(
-                CopycatByteBlock.BOTTOM_NW, CopycatByteBlock.BOTTOM_NE,
-                CopycatByteBlock.BOTTOM_SW, CopycatByteBlock.BOTTOM_SE,
-                CopycatByteBlock.TOP_NW, CopycatByteBlock.TOP_NE,
-                CopycatByteBlock.TOP_SW, CopycatByteBlock.TOP_SE
-        )) {
-            finalStateToPlace = finalStateToPlace.setValue(prop, materialComponent.cornerState().getValue(prop));
+        if (block instanceof IMultiStateCopycatBlock) {
+            boolean anyActive = false;
+            for (Property<?> prop : block.defaultBlockState().getProperties()) {
+                if (!(prop instanceof BooleanProperty boolProp)) continue;
+                boolean active = materialComponent.activeParts().contains(boolProp.getName());
+                finalStateToPlace = finalStateToPlace.setValue(boolProp, active);
+                if (active) anyActive = true;
+            }
+
+            if (!anyActive) {
+                player.displayClientMessage(
+                        Component.literal("No parts are enabled, cannot place block").withStyle(ChatFormatting.RED),
+                        true
+                );
+                return false;
+            }
         }
+        // TODO non multi state copycat block placement logic goes here
+        // TODO this is where applyCopycatMaterial should theoretically go i guess
+        // TODO maybe try and consolidate applyCopycatMaterial so it works for both multi state and full blocks? idk
 
         BlockState oldState = level.getBlockState(pos);
         if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;

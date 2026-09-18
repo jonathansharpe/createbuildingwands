@@ -32,7 +32,7 @@ public class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<WandMaterialComponent>> WAND_MATERIALS =
             register("wand_materials", builder -> builder
                     .persistent(WandMaterialComponent.CODEC)
-                    .networkSynchronized(ByteBufCodecs.fromCodec(WandMaterialComponent.CODEC))
+                    .networkSynchronized(WandMaterialComponent.STREAM_CODEC)
             );
 
     private static <T>DeferredHolder<DataComponentType<?>, DataComponentType<T>> register(String name, UnaryOperator<DataComponentType.Builder<T>> builderOperator) {

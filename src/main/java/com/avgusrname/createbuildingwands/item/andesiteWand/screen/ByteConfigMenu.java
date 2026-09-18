@@ -1,6 +1,5 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
-import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 
 import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
@@ -8,34 +7,22 @@ import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStora
 import com.simibubi.create.AllBlocks;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.util.datafix.fixes.ItemStackTagFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockSetType;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.neoforged.neoforge.items.ItemStackHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-public class ByteConfigMenu extends AbstractContainerMenu {
-    private final InteractionHand wandHand;
-    private final ItemStack wandItem;
-    private final Player player;
+public class ByteConfigMenu extends MultiStateConfigMenu {
 
-    public static final int BTN_WIDTH = 95;
-    public static final int BTN_HEIGHT = 20;
     public static final int SLOT_SIZE = 18;
     public static final int H_SPACING = 12;
     public static final int V_SPACING = 6;
@@ -61,106 +48,34 @@ public class ByteConfigMenu extends AbstractContainerMenu {
      * @param pHand
      */
     public ByteConfigMenu(int pContainerId, Inventory pPlayerInventory, InteractionHand pHand) {
-        super(ModMenuTypes.BYTE_CONFIG_MENU.get(), pContainerId);
-        this.wandHand = pHand;
-        this.wandItem = pPlayerInventory.player.getItemInHand(pHand);
-        this.player = pPlayerInventory.player;
+        super(ModMenuTypes.BYTE_CONFIG_MENU.get(), pContainerId, pPlayerInventory, pHand, 8);
+        loadSlotsFromWand();
+    }
 
-        // registers the container slots
-        for (int i = 0; i < 8; i++) {
-            int[] coords = getComponentCoordinates(i);
-            int slotX = coords[0] + BTN_WIDTH + 4;
-            int slotY = coords[1] + 1;
-            this.addSlot(new SlotItemHandler(byteSlotHandler, i, slotX, slotY));
-        }
+    private void loadSlotsFromWand() {
+        WandMaterialComponent component = wandItem.getOrDefault(
+                ModDataComponents.WAND_MATERIALS.get(),
+                WandMaterialComponent.createEmptyDefault()
+        );
+        MaterialItemStorage storage = component.toStorage(player.level().registryAccess());
 
-        if (!this.wandItem.isEmpty()) {
-            WandMaterialComponent materialComponent = this.wandItem.getOrDefault(
-                    ModDataComponents.WAND_MATERIALS.get(),
-                    WandMaterialComponent.createEmpty()
-            );
-
-            if (!this.wandItem.has(ModDataComponents.WAND_MATERIALS.get())) {
-                this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(), materialComponent);
-            }
-
-            MaterialItemStorage storage = materialComponent.toStorage(player.level().registryAccess());
-
-            for (int i = 0; i < ORDERED_KEYS.size(); i++) {
-                MaterialItemStorage.MaterialItem materialItem = storage.getMaterialItem(ORDERED_KEYS.get(i));
-                if (materialItem == null) continue;
-
-                Item itemToStore = materialItem.consumedItem().getItem();
-                // TODO may need to adjust this statement
-                if (itemToStore == Items.AIR || materialItem.consumedItem().isEmpty()) continue;
-
-                byteSlotHandler.setStackInSlot(i, materialItem.consumedItem().copy());
-            }
-
-            this.broadcastChanges();
-        }
-
-        int invTopY = 132;
-        for (int row = 0; row < 3; ++row) {
-            for (int col = 0; col < 9; ++col) {
-                this.addSlot(new Slot(pPlayerInventory, col + row * 9 + 9, col * 18, invTopY + row * 18));
-            }
-        }
-
-        int hotbarTopY = 190;
-        for (int col = 0; col < 9; ++col) {
-            this.addSlot(new Slot(pPlayerInventory, col, 8 + col * 18, hotbarTopY));
+        for (int i = 0; i < ORDERED_KEYS.size(); i++) {
+            MaterialItemStorage.MaterialItem item = storage.getMaterialItem(ORDERED_KEYS.get(i));
+            if (item == null || item.consumedItem().isEmpty()) continue;
+            materialSlotHandler.setStackInSlot(i, item.consumedItem().copy());
         }
     }
 
-    private final ItemStackHandler byteSlotHandler = new ItemStackHandler(8) {
-        @Override
-        protected void onContentsChanged(int slot) {
-            ItemStack storedStack = getStackInSlot(slot);
-            String propertyKey = ORDERED_KEYS.get(slot);
+    @Override
+    public List<String> getOrderedKeys() { return ORDERED_KEYS;}
 
-            ByteConfigMenu.this.saveSlotMaterialToWand(propertyKey, storedStack);
+    @Override
+    protected void onMaterialChanged(int slot, ItemStack stack) {
+        saveSlotMaterialToWand(ORDERED_KEYS.get(slot), stack);
+    }
 
-            ByteConfigMenu.this.broadcastChanges();
-        }
-
-        @Override
-        public @NotNull ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            CreateBuildingWands.LOGGER.info("[WandDebug byteSlotHandler insertItem] about to insert an item");
-
-            if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem)) {
-                return ItemStack.EMPTY;
-            } else if (!this.isItemValid(slot, stack)) {
-                return stack;
-            } else {
-                this.validateSlotIndex(slot);
-                if (!simulate) {
-                    this.stacks.set(slot, stack.copyWithCount(1));
-                }
-                this.onContentsChanged(slot);
-                return stack.copyWithCount(1);
-            }
-        }
-
-        @Override
-        public @NotNull ItemStack extractItem(int slot, int amount, boolean simulate) {
-            CreateBuildingWands.LOGGER.info("[WandDebug byteSlotHandler insertItem] about to remove an item");
-
-            if (!this.getStackInSlot(slot).isEmpty()) {
-                if (!simulate) {
-                    this.setStackInSlot(slot, ItemStack.EMPTY);
-                }
-            }
-            return ItemStack.EMPTY;
-        }
-    };
-
-    /**
-     * gets a number so it can draw the 8 possible config slots on screen
-     * @param index where we are in the list of items
-     * @return array of the coordinates for where the slot should be drawn
-     */
-    public static int[] getComponentCoordinates(int index) {
+    @Override
+    protected int[] getComponentCoordinates(int index) {
         int row = index % 4;
         int col = index / 4;
 
@@ -173,8 +88,23 @@ public class ByteConfigMenu extends AbstractContainerMenu {
     }
 
     @Override
+    protected int getInventoryY() { return 132; }
+
+    @Override
+    protected int getHotbarY() { return 190; }
+
+    @Override
+    protected boolean isPartActive(int slot) {
+        WandMaterialComponent component = wandItem.getOrDefault(
+                ModDataComponents.WAND_MATERIALS.get(),
+                WandMaterialComponent.createEmptyDefault()
+        );
+        return component.isActive(ORDERED_KEYS.get(slot));
+    }
+
+    @Override
     public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
-        if (slotId >= 0 && slotId < 8) {
+        if (slotId >= 0 && slotId < slotCount) {
             Slot targetslot = this.slots.get(slotId);
             ItemStack carriedStack = this.getCarried();
             String propertyKey = ORDERED_KEYS.get(slotId);
@@ -186,56 +116,23 @@ public class ByteConfigMenu extends AbstractContainerMenu {
                 }
 
                 ItemStack ghostCopy = carriedStack.copyWithCount(1);
+                ItemStack result = this.materialSlotHandler.insertItem(slotId, ghostCopy, false);
 
-                byteSlotHandler.setStackInSlot(slotId, ghostCopy);
-                targetslot.setChanged();
-                this.saveSlotMaterialToWand(propertyKey, ghostCopy);
-
+                if (!result.isEmpty()) {
+                    targetslot.setChanged();
+                    this.saveSlotMaterialToWand(propertyKey, ghostCopy);
+                }
                 return;
+
             } else if (carriedStack.isEmpty() && !targetslot.getItem().isEmpty()) {
-                byteSlotHandler.setStackInSlot(slotId, ItemStack.EMPTY);
+                this.materialSlotHandler.setStackInSlot(slotId, ItemStack.EMPTY);
                 targetslot.setChanged();
-
                 this.saveSlotMaterialToWand(propertyKey, ItemStack.EMPTY);
-
                 return;
             }
             return;
         }
         super.clicked(slotId, button, clickType, player);
-    }
-
-    // TODO fix the below method
-    // TODO why am i fixing this? it works fine
-
-    /**
-     * what happens when a player shift clicks an item
-     * @param player the player obvs
-     * @param index the slot to put the block into
-     * @return
-     */
-    @Override
-    public @NotNull ItemStack quickMoveStack(@NotNull Player player, int index) {
-        if (index >= 8) {
-            Slot sourceSlot = this.slots.get(index);
-            if (sourceSlot.hasItem()) {
-                ItemStack stackInSource = sourceSlot.getItem();
-
-                if (stackInSource.getItem() instanceof BlockItem) {
-                    for (int i = 0; i < 8; i++) {
-                        if (this.byteSlotHandler.getStackInSlot(i).isEmpty()) {
-                            this.byteSlotHandler.setStackInSlot(i, stackInSource.copyWithCount(1));
-                            this.broadcastChanges();
-                            break;
-                        }
-                    }
-                }
-            } else {
-                this.byteSlotHandler.setStackInSlot(index, ItemStack.EMPTY);
-                this.broadcastChanges();
-            }
-        }
-        return ItemStack.EMPTY;
     }
 
     /**
@@ -246,19 +143,28 @@ public class ByteConfigMenu extends AbstractContainerMenu {
         if (!this.wandItem.isEmpty()) {
 
             String propertyKey = ORDERED_KEYS.get(slotId);
-
             WandMaterialComponent current = this.wandItem.getOrDefault(
                     ModDataComponents.WAND_MATERIALS.get(),
-                    WandMaterialComponent.createEmpty()
+                    WandMaterialComponent.createEmptyDefault()
             );
 
             BooleanProperty prop = CopycatByteBlock.byByte(CopycatByteBlock.byteMap.get(propertyKey));
-            boolean currentlyActive = current.cornerState().getValue(prop);
+            boolean currentlyActive = current.isActive(propertyKey);
+            boolean nowActive = !currentlyActive;
 
-            WandMaterialComponent updated = current.withCornerActive(propertyKey, !currentlyActive);
+            WandMaterialComponent updated = current.withCornerActive(propertyKey, nowActive);
+
+            if (!nowActive) {
+                HolderLookup.Provider registries = player.level().registryAccess();
+                MaterialItemStorage storage = updated.toStorage(registries);
+                storage.storeMaterialItem(propertyKey, new MaterialItemStorage.MaterialItem(
+                        AllBlocks.COPYCAT_BASE.getDefaultState(), ItemStack.EMPTY
+                ));
+                updated = WandMaterialComponent.fromStorage(storage, updated.activeParts(), registries);
+                materialSlotHandler.setStackInSlot(slotId, ItemStack.EMPTY);
+            }
 
             this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(), updated);
-
             this.broadcastChanges();
         }
     }
@@ -306,7 +212,7 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
         WandMaterialComponent current = wandItem.getOrDefault(
                 ModDataComponents.WAND_MATERIALS.get(),
-                WandMaterialComponent.createEmpty()
+                WandMaterialComponent.createEmptyDefault()
         );
 
         HolderLookup.Provider registries = player.level().registryAccess();
@@ -319,10 +225,8 @@ public class ByteConfigMenu extends AbstractContainerMenu {
 
         storage.storeMaterialItem(propertyKey, new MaterialItemStorage.MaterialItem(newMaterial, newConsumedItem.isEmpty() ? ItemStack.EMPTY : newConsumedItem.copyWithCount(1)));
 
-        BlockState newCornerState = current.cornerState();
-
         this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
-                WandMaterialComponent.fromStorage(storage, newCornerState, registries));
+                WandMaterialComponent.fromStorage(storage, current.activeParts(), registries));
 
         this.broadcastChanges();
     }
