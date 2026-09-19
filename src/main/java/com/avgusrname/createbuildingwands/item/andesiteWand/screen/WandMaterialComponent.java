@@ -14,25 +14,25 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
-public record WandMaterialComponent(CompoundTag materialData, Set<String> activeParts) {
+public record WandMaterialComponent(CompoundTag materialData, Map<String, String> blockStateProps) {
     public static WandMaterialComponent createEmptyDefault() {
-        return new WandMaterialComponent(new CompoundTag(), new HashSet<>());
+        return new WandMaterialComponent(new CompoundTag(), new HashMap<>());
     }
 
     public boolean isActive(String key) {
-        return activeParts.contains(key);
+        return "true".equals(blockStateProps.get(key));
     }
 
-    public WandMaterialComponent withCornerActive(String key, boolean active) {
-        Set<String> updated = new HashSet<>(activeParts);
-        if (active) updated.add(key);
-        else updated.remove(key);
+    public WandMaterialComponent withBlockStateProp(String key, String value) {
+        Map<String, String> updated = new HashMap<>(blockStateProps);
+        updated.put(key, value);
         return new WandMaterialComponent(materialData, updated);
+    }
+
+    public WandMaterialComponent withPartActive(String key, boolean active) {
+        return withBlockStateProp(key, String.valueOf(active));
     }
 
     public MaterialItemStorage toStorage(HolderLookup.Provider registries) {
@@ -44,24 +44,21 @@ public record WandMaterialComponent(CompoundTag materialData, Set<String> active
         return storage;
     }
 
-    public static WandMaterialComponent fromStorage(MaterialItemStorage storage, Set<String> activeParts, HolderLookup.Provider registries) {
-        return new WandMaterialComponent(storage.serialize(registries), activeParts);
+    public static WandMaterialComponent fromStorage(MaterialItemStorage storage, Map<String, String> blockStateProps, HolderLookup.Provider registries) {
+        return new WandMaterialComponent(storage.serialize(registries), blockStateProps);
     }
 
     public static final Codec<WandMaterialComponent> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     CompoundTag.CODEC.fieldOf("material_data").forGetter(WandMaterialComponent::materialData),
-                    Codec.STRING.listOf()
-                            .xmap(list -> (Set<String>) new HashSet<>(list), list -> new ArrayList<>(list))
-                            .fieldOf("active_parts")
-                            .forGetter(WandMaterialComponent::activeParts)
+                    Codec.unboundedMap(Codec.STRING, Codec.STRING).fieldOf("block_state_props").forGetter(WandMaterialComponent::blockStateProps)
             ).apply(instance, WandMaterialComponent::new)
     );
 
     public static final StreamCodec<RegistryFriendlyByteBuf, WandMaterialComponent> STREAM_CODEC =
             StreamCodec.composite(
                     ByteBufCodecs.COMPOUND_TAG, WandMaterialComponent::materialData,
-                    ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list()).map(HashSet::new, List::copyOf), WandMaterialComponent::activeParts,
+                    ByteBufCodecs.map(HashMap::new, ByteBufCodecs.STRING_UTF8, ByteBufCodecs.STRING_UTF8), WandMaterialComponent::blockStateProps,
                     WandMaterialComponent::new
             );
 }

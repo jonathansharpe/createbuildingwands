@@ -2,6 +2,8 @@ package com.avgusrname.createbuildingwands.item.andesiteWand;
 
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
+import com.copycatsplus.copycats.CCBlocks;
+import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import net.minecraft.network.chat.Component;
@@ -49,6 +51,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 // SPAGHETTI
 public class AndesiteWandItem extends Item {
@@ -221,6 +224,12 @@ public class AndesiteWandItem extends Item {
         return successfulPlacement ? InteractionResult.CONSUME : InteractionResult.FAIL;
     }
 
+    private static <T extends Comparable<T>> BlockState applyProperty(BlockState state, Property<T> prop, String value) {
+        return prop.getValue(value)
+                .map(v -> state.setValue(prop, v))
+                .orElse(state);
+    }
+
     /**
      * places a block! who knew it could be so complicated?
      * @param level the minecraft world
@@ -235,6 +244,13 @@ public class AndesiteWandItem extends Item {
      */
     private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
         //CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
+
+        // BELOW IS FOR TESTING
+        Block slabBlock = CCBlocks.COPYCAT_SLAB.get();
+        slabBlock.defaultBlockState().getProperties().forEach(prop ->
+                CreateBuildingWands.LOGGER.info("Slab property: {} = {}", prop.getName(),
+                        prop.getPossibleValues()));
+
         if (!level.getBlockState(pos).canBeReplaced()) return false;
         if (player == null) return false;
 
@@ -252,10 +268,10 @@ public class AndesiteWandItem extends Item {
         if (block instanceof IMultiStateCopycatBlock) {
             boolean anyActive = false;
             for (Property<?> prop : block.defaultBlockState().getProperties()) {
-                if (!(prop instanceof BooleanProperty boolProp)) continue;
-                boolean active = materialComponent.activeParts().contains(boolProp.getName());
-                finalStateToPlace = finalStateToPlace.setValue(boolProp, active);
-                if (active) anyActive = true;
+                String value = materialComponent.blockStateProps().get(prop.getName());
+                if (value == null) continue;
+                finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
+                if (prop instanceof BooleanProperty && "true".equals(value)) anyActive = true;
             }
 
             if (!anyActive) {
