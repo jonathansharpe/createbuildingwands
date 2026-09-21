@@ -17,11 +17,9 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 
-public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
+public class ByteConfigScreen extends MultiStateConfigScreen<ByteConfigMenu> {
 
 	private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(CreateBuildingWands.MODID, "textures/gui/byte_config.png");
-
-	private final Button[] cornerButtons = new Button[8];
 
 	public ByteConfigScreen(ByteConfigMenu menu, Inventory playerInventory, Component title) {
 		super(menu, playerInventory, title);
@@ -30,50 +28,9 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 	}
 
 	@Override
-	protected void init() {
-		super.init();
-		this.renderables.clear();
+	protected ResourceLocation getTexture() { return TEXTURE; }
 
-		for (int i = 0; i < 8; i++) {
-			int[] coords = this.menu.getComponentCoordinates(i);
-
-			int absoluteBtnX = this.leftPos + coords[0];
-			int absoluteBtnY = this.topPos + coords[1];
-		
-			final int cornerIndex = i;
-			String key = ByteConfigMenu.ORDERED_KEYS.get(i);
-
-			this.cornerButtons[i] = Button.builder(Component.literal(formatKeyName(key)), button -> {
-				PacketDistributor.sendToServer(new CornerTogglePacket(cornerIndex));
-			}).bounds(absoluteBtnX, absoluteBtnY, ByteConfigMenu.BTN_WIDTH, ByteConfigMenu.BTN_HEIGHT).build();
-
-			this.addRenderableWidget(this.cornerButtons[i]);
-		}
-		// CreateBuildingWands.LOGGER.info("[WandDebug init] about to update button messages after the for loop");
-		this.updateButtonMessages();
-	}
-
-	@Override
-	protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-		int x = (this.width - this.imageWidth) / 2;
-		int y = (this.height - this.imageHeight) / 2;
-		graphics.blit(TEXTURE, x, y, 0, 0, this.imageWidth, this.imageHeight);
-	}
-
-	@Override
-	public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-		// CreateBuildingWands.LOGGER.info("[WandDebug render] about to update buttons and then render everything");
-		this.updateButtonMessages();
-		super.render(guiGraphics, mouseX, mouseY, partialTick);
-	}
-
-	/**
-	 * converts the form of a cardinal direction to another, like "bottom_northwest" to "Bottom NW"
-	 * @param key property form of the cardinal direction
-	 * @return returns key to be correctly text formatted
-	 */
-
-	private String formatKeyName(String key) {
+	protected String formatKeyName(String key) {
 		// e.g. "bottom_northwest" -> "Bottom NW"
 		return switch (key) {
 			case "bottom_northwest" -> "Bottom NW";
@@ -86,33 +43,5 @@ public class ByteConfigScreen extends AbstractContainerScreen<ByteConfigMenu> {
 			case "top_southeast"    -> "Top SE";
 			default -> key;
 		};
-	}
-
-	/**
-	 * updates the messages on the buttons
-	 */
-	private void updateButtonMessages() {
-		// INFO any log messages in this function will be called a LOT, like once every second, so log carefully
-		// CreateBuildingWands.LOGGER.info("[WandDebug ByteConfigScreen] updateButtonMessages called");
-
-        assert this.minecraft != null;
-        if (this.minecraft.player == null) return;
-
-		ItemStack syncedWand = this.minecraft.player.getItemInHand(this.menu.getWandHand());
-		WandMaterialComponent materialComponent = syncedWand.getOrDefault(
-				ModDataComponents.WAND_MATERIALS.get(),
-				WandMaterialComponent.createEmptyDefault()
-		);
-
-		for (int i = 0; i < 8; i++) {
-			Button btn = this.cornerButtons[i];
-			if (btn == null) continue;
-
-			String key = ByteConfigMenu.ORDERED_KEYS.get(i);
-			BooleanProperty prop = CopycatByteBlock.byByte(CopycatByteBlock.byteMap.get(key));
-			boolean isActive = materialComponent.isActive(key);
-
-			btn.setMessage(Component.literal(formatKeyName(key) + (isActive ? ": ON" : ": OFF")));
-		}
 	}
 }

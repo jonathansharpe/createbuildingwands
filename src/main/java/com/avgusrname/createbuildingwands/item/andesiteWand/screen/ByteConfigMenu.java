@@ -80,10 +80,6 @@ public class ByteConfigMenu extends MultiStateConfigMenu {
         return component.isActive(ORDERED_KEYS.get(slot));
     }
 
-    public InteractionHand getWandHand() {
-        return wandHand;
-    }
-
     @Override
     public @NotNull MenuType<?> getType() {
         return ModMenuTypes.BYTE_CONFIG_MENU.get();

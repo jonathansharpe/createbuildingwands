@@ -79,24 +79,28 @@ public class CreateBuildingWands {
                 (payload, context) -> context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context))
             );
 
+            registrar.playToServer(
+                    MultiStateTogglePacket.TYPE,
+                    MultiStateTogglePacket.STREAM_CODEC,
+                    (payload, context) -> context.enqueueWork(() -> {
+                        Player player = context.player();
+                        if (!(player.containerMenu instanceof MultiStateConfigMenu menu)) return;
+
+                        switch (payload.key()) {
+                            case "toggle" -> menu.handleServerToggle(Integer.parseInt(payload.value()));
+                            case "axis" -> {
+                                if (menu instanceof SlabConfigMenu slabMenu) {
+                                    slabMenu.handleAxisChange(payload.value());
+                                }
+                            }
+                        }
+                    })
+            );
+
             registrar.playToClient(
                     ForceRedrawPacket.TYPE,
                     ForceRedrawPacket.CODEC,
                     ForceRedrawPacketHandler::handle
-            );
-
-            registrar.playBidirectional(
-                CornerTogglePacket.TYPE, 
-                CornerTogglePacket.CODEC, 
-                (payload, context) -> context.enqueueWork(() -> {
-                    Player player = context.player();
-
-                    if (player.containerMenu instanceof ByteConfigMenu menu) {
-                        menu.handleServerToggle(payload.cornerOrdinal());
-                    } else {
-                        CreateBuildingWands.LOGGER.warn("Packet dropped! Player container menu is NOT instance of ByteConfigMenu. Active Container: {}", player.containerMenu.getClass().getSimpleName());
-                    }
-                })
             );
 
             LOGGER.info("Networking Payloads Registered directly in main mod class.");

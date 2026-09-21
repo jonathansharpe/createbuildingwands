@@ -73,6 +73,10 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
         );
     }
 
+    public InteractionHand getWandHand() {
+        return wandHand;
+    }
+
     protected void loadSlotsFromWand() {
         MaterialItemStorage storage = getCurrentComponent().toStorage(player.level().registryAccess());
 
