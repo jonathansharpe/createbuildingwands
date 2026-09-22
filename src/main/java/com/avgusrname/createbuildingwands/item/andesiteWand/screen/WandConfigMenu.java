@@ -306,8 +306,8 @@ public class WandConfigMenu extends AbstractContainerMenu{
         return wandHand;
     }
 
-    public Block getCopycatBlock() {
-        return wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+    public ItemStack getWandItem() {
+        return wandItem;
     }
 
     @Override

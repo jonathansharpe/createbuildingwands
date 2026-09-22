@@ -53,12 +53,16 @@ public class CreateBuildingWands {
         public static void registerMenuScreens(RegisterMenuScreensEvent event) {
             LOGGER.info("Registering WandConfigScreen...");
             event.register(
-                ModMenuTypes.WAND_CONFIG_MENU.get(), 
-                WandConfigScreen::new
+                    ModMenuTypes.WAND_CONFIG_MENU.get(),
+                    WandConfigScreen::new
             );
             event.register(
-                ModMenuTypes.BYTE_CONFIG_MENU.get(),
-                ByteConfigScreen::new
+                    ModMenuTypes.BYTE_CONFIG_MENU.get(),
+                    ByteConfigScreen::new
+            );
+            event.register(
+                    ModMenuTypes.SLAB_CONFIG_MENU.get(),
+                    SlabConfigScreen::new
             );
         }
 

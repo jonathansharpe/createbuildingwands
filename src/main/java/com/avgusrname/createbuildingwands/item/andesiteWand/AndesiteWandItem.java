@@ -6,6 +6,7 @@ import com.copycatsplus.copycats.CCBlocks;
 import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
+import net.minecraft.client.multiplayer.chat.report.ChatReport;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -265,14 +266,16 @@ public class AndesiteWandItem extends Item {
 
         BlockState finalStateToPlace = stateToPlace;
 
-        if (block instanceof IMultiStateCopycatBlock) {
-            boolean anyActive = false;
+        if (block instanceof IMultiStateCopycatBlock copycatBlock) {
             for (Property<?> prop : block.defaultBlockState().getProperties()) {
                 String value = materialComponent.blockStateProps().get(prop.getName());
                 if (value == null) continue;
                 finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
-                if (prop instanceof BooleanProperty && "true".equals(value)) anyActive = true;
             }
+
+            Set<String> storageProps = copycatBlock.storageProperties();
+            boolean anyActive = storageProps.stream()
+                    .anyMatch(key -> materialComponent.blockStateProps().containsKey(key));
 
             if (!anyActive) {
                 player.displayClientMessage(

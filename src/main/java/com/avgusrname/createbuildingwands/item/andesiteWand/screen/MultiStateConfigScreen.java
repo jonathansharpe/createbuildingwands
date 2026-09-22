@@ -1,9 +1,8 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
-import com.avgusrname.createbuildingwands.networking.packet.CornerTogglePacket;
 import com.avgusrname.createbuildingwands.networking.packet.MultiStateTogglePacket;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -13,6 +12,8 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Optional;
 
 public abstract class MultiStateConfigScreen<T extends MultiStateConfigMenu> extends AbstractContainerScreen<T> {
     protected final Button[] partButtons;
@@ -25,9 +26,11 @@ public abstract class MultiStateConfigScreen<T extends MultiStateConfigMenu> ext
     @Override
     protected void init() {
         super.init();
+        CreateBuildingWands.LOGGER.info("[WandDebug] MultiStateConfigScreen init called, slotCount: {}", menu.slotCount);
         this.renderables.clear();
 
         for (int i = 0; i < menu.slotCount; i++) {
+            CreateBuildingWands.LOGGER.info("[WandDebug] Creating button for slot {}", i);
             int[] coords = this.menu.getComponentCoordinates(i);
             int absoluteBtnX = this.leftPos + coords[0];
             int absoluteBtnY = this.topPos + coords[1];
@@ -46,17 +49,22 @@ public abstract class MultiStateConfigScreen<T extends MultiStateConfigMenu> ext
         updateButtonMessages();
     }
 
+    private int renderCount = 0;
     @Override
-    protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        int x = (this.width - this.imageWidth) / 2;
-        int y = (this.height - this.imageHeight) / 2;
-        graphics.blit(getTexture(), x, y, 0, 0, this.imageWidth, this.imageHeight);
+    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (renderCount < 5) {
+            CreateBuildingWands.LOGGER.info("[WandDebug] MultiStateConfigScreen render called");
+            renderCount++;
+        }
+        updateButtonMessages();
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     @Override
-    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        updateButtonMessages();
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+       // int x = (this.width - this.imageWidth) / 2;
+       // int y = (this.height - this.imageHeight) / 2;
+       // graphics.blit(getTexture(), x, y, 0, 0, this.imageWidth, this.imageHeight);
     }
 
     private void updateButtonMessages() {

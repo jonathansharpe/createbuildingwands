@@ -4,6 +4,10 @@ import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPacket.WandCommand;
+import com.avgusrname.createbuildingwands.util.WandUtils;
+import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
+import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
+import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
@@ -13,8 +17,10 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -26,6 +32,9 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         ResourceLocation.fromNamespaceAndPath(CreateBuildingWands.MODID, "textures/gui/wandconfig/wand_gui.png");
 
     private static final int MODE_WIDGET_WIDTH = 80;
+    private Button configureButton = null;
+    int xOffset = this.leftPos + 100;
+    int yOffset = this.topPos + 100;
 
     private static final List<Component> WAND_MODE_NAMES = Arrays.stream(WandMode.values())
         .map(WandMode::getDisplayName)
@@ -49,8 +58,6 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
 
         int modeWidgetX = this.leftPos + 8;
         int modeWidgetY = this.topPos + 35;
-        int xOffset = this.leftPos + 100;
-        int yOffset = this.topPos + 100;
 
         int initialModeIndex = this.menu.getInitialModeIndex();
 
@@ -62,18 +69,40 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
                 this::onModeScroll);
         this.addRenderableWidget(modeWidget);
 
-        // adds widget for copycat multistate config
-        this.addRenderableWidget(Button.builder(Component.literal("Configure Byte"), button -> {
-            CreateBuildingWands.LOGGER.info("[WandDebug] Sending multi-purpose WandPacket to request server menu switch...");
-            PacketDistributor.sendToServer(
-                    new WandPacket(
-                            WandCommand.OPEN_BYTE_CONFIG_MENU,
-                            0,
-                            Optional.empty(),
-                            this.menu.getWandHand()
-                        )
-                    );
-        }).bounds(xOffset, yOffset, 100, 20).build());
+        updateConfigureButton();
+    }
+
+    private String getConfigButtonLabel(Block block) {
+        if (block instanceof CopycatByteBlock) return "Configure Byte";
+        if (block instanceof CopycatSlabBlock) return "Configure Slab";
+        return "Configure";
+    }
+
+    @Override
+    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        updateConfigureButton();
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    private void updateConfigureButton() {
+        Block copycatBlock = WandUtils.getCopycatBlock(this.menu.getWandItem());
+        boolean shouldShow = copycatBlock instanceof IMultiStateCopycatBlock;
+
+        if (shouldShow && configureButton == null) {
+            CreateBuildingWands.LOGGER.info("[WandDebug] Configure button clicked, sending packet");
+            configureButton = Button.builder(Component.literal(getConfigButtonLabel(copycatBlock)), button -> {
+                PacketDistributor.sendToServer(new WandPacket(
+                        WandCommand.OPEN_MULTISTATE_CONFIG_MENU,
+                        0,
+                        Optional.empty(),
+                        this.menu.getWandHand()
+                ));
+            }).bounds(xOffset, yOffset, 100, 20).build();
+            this.addRenderableWidget(configureButton);
+        } else if (!shouldShow && configureButton != null) {
+            this.removeWidget(configureButton);
+            configureButton = null;
+        }
     }
 
     // renders all of the labels for the menu

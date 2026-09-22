@@ -16,6 +16,7 @@ public class SlabConfigScreen extends MultiStateConfigScreen<SlabConfigMenu>{
 
     public SlabConfigScreen(SlabConfigMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
+        CreateBuildingWands.LOGGER.info("[WandDebug] SlabConfigScreen constructor called");
         this.imageWidth = 200;
         this.imageHeight = 180;
     }

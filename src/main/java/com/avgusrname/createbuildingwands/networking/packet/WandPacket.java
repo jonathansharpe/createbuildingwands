@@ -2,13 +2,15 @@ package com.avgusrname.createbuildingwands.networking.packet;
 
 import java.util.Optional;
 
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ByteCornerData;
-
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.item.andesiteWand.AndesiteWandItem;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ByteConfigMenu;
 
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.SlabConfigMenu;
+import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
+import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -22,7 +24,10 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public record WandPacket(WandCommand command, int value, Optional<WandMode> wandMode, InteractionHand hand) implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<WandPacket> TYPE = new CustomPacketPayload.Type<>(
@@ -63,23 +68,47 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
                     });
                 }
             }
-            case OPEN_BYTE_CONFIG_MENU -> {
-                if (player.containerMenu instanceof ByteConfigMenu byteMenu) {
-                    byteMenu.handleServerToggle(payload.value());
-                } else if (player instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.openMenu(new MenuProvider() {
-                        @Override
-                        public Component getDisplayName() {
-                            return Component.literal("Copycat Byte Configuration");
+            case OPEN_MULTISTATE_CONFIG_MENU -> {
+                if (player instanceof ServerPlayer serverPlayer) {
+                    CreateBuildingWands.LOGGER.info("[WandDebug] OPEN_MULTISTATE_CONFIG_MENU received, player menu: {}", player.containerMenu.getClass().getSimpleName());
+                    Block copycatBlock = wand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+                    CreateBuildingWands.LOGGER.info("[WandDebug] copycat block is: {}", copycatBlock);
+                    switch (copycatBlock) {
+                        case null -> {
+                            return;
                         }
+                        case CopycatByteBlock copycatByteBlock -> {
+                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening ByteConfigMenu");
+                            serverPlayer.openMenu(new MenuProvider() {
+                                @Override
+                                public Component getDisplayName() {
+                                    return Component.literal("Copycat Byte Configuration");
+                                }
 
-                        @Override
-                        public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player playerEntity) {
-                            return new ByteConfigMenu(containerId, playerInventory, payload.hand());
+                                @Override
+                                public AbstractContainerMenu createMenu(int id, @NotNull Inventory inv, Player p) {
+                                    return new ByteConfigMenu(id, inv, payload.hand());
+                                }
+                            }, buf -> buf.writeEnum(payload.hand()));
                         }
-                    }, buf -> {
-                        buf.writeEnum(payload.hand());
-                    });
+                        case CopycatSlabBlock copycatSlabBlock -> {
+                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening SlabConfigMenu");
+                            serverPlayer.openMenu(new MenuProvider() {
+                                @Override
+                                public Component getDisplayName() {
+                                    return Component.literal("Copycat Slab Configuration");
+                                }
+
+                                @Override
+                                public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
+                                    return new SlabConfigMenu(id, inv, payload.hand());
+                                }
+                            }, buf -> buf.writeEnum(payload.hand()));
+                        }
+                        default -> {
+                        }
+                    }
+
                 }
             }
         }
@@ -87,6 +116,6 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
 
     public enum WandCommand {
         SET_MODE,
-        OPEN_BYTE_CONFIG_MENU
+        OPEN_MULTISTATE_CONFIG_MENU
     }
 }
