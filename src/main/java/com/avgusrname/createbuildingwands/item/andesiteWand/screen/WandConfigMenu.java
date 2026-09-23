@@ -174,12 +174,16 @@ public class WandConfigMenu extends AbstractContainerMenu{
         protected void onContentsChanged(int slot) {
             ItemStack storedStack = getStackInSlot(slot);
 
-            if (storedStack.isEmpty()) {
-                wandItem.remove(ModDataComponents.WAND_BLOCK_COPYCAT.get());
-            } else {
-                if (storedStack.getItem() instanceof BlockItem storedBlock) {
-                    wandItem.set(ModDataComponents.WAND_BLOCK_COPYCAT.get(), storedBlock.getBlock());
-                }
+            Block newBlock = storedStack.isEmpty() ? null
+                    : storedStack.getItem() instanceof BlockItem bi ? bi.getBlock() : null;
+            Block currentBlock = wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+
+            if (newBlock != currentBlock) {
+                if (newBlock == null)
+                    wandItem.remove(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+                else
+                    wandItem.set(ModDataComponents.WAND_BLOCK_COPYCAT.get(), newBlock);
+                wandItem.set(ModDataComponents.WAND_MATERIALS.get(), WandMaterialComponent.createEmptyDefault());
             }
 
             WandConfigMenu.this.broadcastChanges();

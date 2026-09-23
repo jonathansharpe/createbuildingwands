@@ -62,7 +62,7 @@ neoForge {
             systemProperty 'neoforge.logging.console.level','debug'
 
             programArguments.addAll(
-                '--quickPlaySingleplayer', 'New World'
+                //'--quickPlaySingleplayer', 'New World'
             )
             client()
 

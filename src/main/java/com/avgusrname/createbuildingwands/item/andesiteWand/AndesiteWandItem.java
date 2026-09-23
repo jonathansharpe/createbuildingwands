@@ -267,6 +267,13 @@ public class AndesiteWandItem extends Item {
         BlockState finalStateToPlace = stateToPlace;
 
         if (block instanceof IMultiStateCopycatBlock copycatBlock) {
+
+            for (Property<?> prop : block.defaultBlockState().getProperties()) {
+                if (prop instanceof BooleanProperty boolProp && copycatBlock.storageProperties().contains(boolProp.getName())) {
+                    finalStateToPlace = finalStateToPlace.setValue(boolProp, false);
+                }
+            }
+
             for (Property<?> prop : block.defaultBlockState().getProperties()) {
                 String value = materialComponent.blockStateProps().get(prop.getName());
                 if (value == null) continue;
@@ -298,7 +305,14 @@ public class AndesiteWandItem extends Item {
         copycatMock.init();
 
         MaterialItemStorage wandStorage = materialComponent.toStorage(player.level().registryAccess());
+        CreateBuildingWands.LOGGER.info("[WandDebug] blockStateProps BEFORE beStorage: {}",
+                materialComponent.blockStateProps());
         MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
+
+        CreateBuildingWands.LOGGER.info("[WandDebug] wandStorage properties before copy: {}",
+                wandStorage.getMaterialMap());
+        CreateBuildingWands.LOGGER.info("[WandDebug] blockStateProps: {}",
+                materialComponent.blockStateProps());
 
         for (String key : wandStorage.getAllProperties()) {
             MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
@@ -306,8 +320,7 @@ public class AndesiteWandItem extends Item {
                 beStorage.storeMaterialItem(key, item);
             }
         }
-
-        //CreateBuildingWands.LOGGER.info("BE materials IMMEDIATELY after loop: {}", copycatMock.getMaterialItemStorage().getAllMaterials());
+        CreateBuildingWands.LOGGER.info("[WandDebug] finalStateToPlace: {}", finalStateToPlace);
 
         targetBE.setChanged();
 
