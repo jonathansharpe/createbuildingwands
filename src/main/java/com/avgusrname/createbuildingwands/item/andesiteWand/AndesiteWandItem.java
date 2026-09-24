@@ -244,13 +244,6 @@ public class AndesiteWandItem extends Item {
      * @return true if the block placed, false if not
      */
     private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
-        //CreateBuildingWands.LOGGER.info("material to place (at top of placeBlock) is: {}", material);
-
-        // BELOW IS FOR TESTING
-        Block slabBlock = CCBlocks.COPYCAT_SLAB.get();
-        slabBlock.defaultBlockState().getProperties().forEach(prop ->
-                CreateBuildingWands.LOGGER.info("Slab property: {} = {}", prop.getName(),
-                        prop.getPossibleValues()));
 
         if (!level.getBlockState(pos).canBeReplaced()) return false;
         if (player == null) return false;
@@ -282,7 +275,7 @@ public class AndesiteWandItem extends Item {
 
             Set<String> storageProps = copycatBlock.storageProperties();
             boolean anyActive = storageProps.stream()
-                    .anyMatch(key -> materialComponent.blockStateProps().containsKey(key));
+                    .anyMatch(key -> "true".equals(materialComponent.blockStateProps().get(key)));
 
             if (!anyActive) {
                 player.displayClientMessage(
@@ -305,14 +298,7 @@ public class AndesiteWandItem extends Item {
         copycatMock.init();
 
         MaterialItemStorage wandStorage = materialComponent.toStorage(player.level().registryAccess());
-        CreateBuildingWands.LOGGER.info("[WandDebug] blockStateProps BEFORE beStorage: {}",
-                materialComponent.blockStateProps());
         MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
-
-        CreateBuildingWands.LOGGER.info("[WandDebug] wandStorage properties before copy: {}",
-                wandStorage.getMaterialMap());
-        CreateBuildingWands.LOGGER.info("[WandDebug] blockStateProps: {}",
-                materialComponent.blockStateProps());
 
         for (String key : wandStorage.getAllProperties()) {
             MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
@@ -320,7 +306,6 @@ public class AndesiteWandItem extends Item {
                 beStorage.storeMaterialItem(key, item);
             }
         }
-        CreateBuildingWands.LOGGER.info("[WandDebug] finalStateToPlace: {}", finalStateToPlace);
 
         targetBE.setChanged();
 
