@@ -273,8 +273,7 @@ public class AndesiteWandItem extends Item {
                 finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
             }
 
-            Set<String> storageProps = copycatBlock.storageProperties();
-            boolean anyActive = storageProps.stream()
+            boolean anyActive = copycatBlock.storageProperties().stream()
                     .anyMatch(key -> "true".equals(materialComponent.blockStateProps().get(key)));
 
             if (!anyActive) {
@@ -284,33 +283,50 @@ public class AndesiteWandItem extends Item {
                 );
                 return false;
             }
-        }
-        // TODO non multi state copycat block placement logic goes here
-        // TODO this is where applyCopycatMaterial should theoretically go i guess
-        // TODO maybe try and consolidate applyCopycatMaterial so it works for both multi state and full blocks? idk
 
-        BlockState oldState = level.getBlockState(pos);
-        if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
+            BlockState oldState = level.getBlockState(pos);
+            if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
 
-        BlockEntity targetBE = level.getBlockEntity(pos);
-        if (!(targetBE instanceof IMultiStateCopycatBlockEntity copycatMock)) return false;
+            BlockEntity targetBE = level.getBlockEntity(pos);
+            if (!(targetBE instanceof IMultiStateCopycatBlockEntity copycatMock)) return false;
 
-        copycatMock.init();
+            copycatMock.init();
+            MaterialItemStorage wandStorage = materialComponent.toStorage(player.level().registryAccess());
+            MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
 
-        MaterialItemStorage wandStorage = materialComponent.toStorage(player.level().registryAccess());
-        MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
-
-        for (String key : wandStorage.getAllProperties()) {
-            MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
-            if (item != null && item.hasCustomMaterial()) {
-                beStorage.storeMaterialItem(key, item);
+            for (String key : wandStorage.getAllProperties()) {
+                MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
+                if (item != null && item.hasCustomMaterial()) {
+                    beStorage.storeMaterialItem(key, item);
+                }
             }
-        }
 
-        targetBE.setChanged();
+            syncBE(level, pos, targetBE, oldState, finalStateToPlace);
+            return true;
+        } else {
+            // non-multistate copycat block logic
+            Block regularBlock = player.getItemInHand(InteractionHand.MAIN_HAND)
+                    .get(ModDataComponents.WAND_BLOCK_REGULAR.get());
+
+
+            BlockState oldState = level.getBlockState(pos);
+            if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
+
+            BlockState materialState = regularBlock.defaultBlockState();
+            ItemStack consumedItem = new ItemStack(regularBlock.asItem());
+            applyCopycatMaterial(level, pos, materialState, consumedItem);
+
+            syncBE(level, pos, level.getBlockEntity(pos), oldState, finalStateToPlace);
+            return true;
+        }
+    }
+
+    private void syncBE(Level level, BlockPos pos, BlockEntity be, BlockState oldState, BlockState newState) {
+        if (be == null) return;
+        be.setChanged();
 
         if (level instanceof ServerLevel serverLevel) {
-            var syncPacket = targetBE.getUpdatePacket();
+            var syncPacket = be.getUpdatePacket();
             if (syncPacket != null) {
                 serverLevel.getChunkSource().chunkMap.getPlayers(new ChunkPos(pos), false)
                         .forEach(p -> p.connection.send(syncPacket));
@@ -320,8 +336,18 @@ public class AndesiteWandItem extends Item {
                     .forEach(p -> PacketDistributor.sendToPlayer(p, new ForceRedrawPacket(pos)));
         }
 
-        level.sendBlockUpdated(pos, oldState, finalStateToPlace, Block.UPDATE_ALL);
-        return true;
+        level.sendBlockUpdated(pos, oldState, newState, Block.UPDATE_ALL);
+
+        for (Direction direction : Direction.values()) {
+            BlockPos neighborPos = pos.relative(direction);
+            BlockState neighborState = level.getBlockState(neighborPos);
+            BlockState updatedNeighbor = neighborState.updateShape(
+                    direction.getOpposite(), newState, level, neighborPos, pos
+            );
+            if (updatedNeighbor != neighborState) {
+                level.setBlock(neighborPos, updatedNeighbor, Block.UPDATE_ALL);
+            }
+        }
     }
 
     /**
@@ -429,74 +455,37 @@ public class AndesiteWandItem extends Item {
         return state != null ? state : block.defaultBlockState();
     }
 
-    /**
-     * applies the copycat material for the given block information
-     * TODO this does not work with the multi-state copycats, plz fix
-     * @param level the minecraft world itself
-     * @param pos the position at which to apply the copycat material
-     * @param materialState the BlockState of the block texture to apply to the copycat
-     * @param materialItemStack the itemstack of the block, so the item can be placed inside the placed copycat block to retain the texture upon relog
-     */
-    private void applyCopycatMaterial(Level level, BlockPos pos, BlockState materialState, ItemStack materialItemStack, String specificProperty) {
+    private void applyCopycatMaterial(Level level, BlockPos pos, BlockState materialState, ItemStack consumedItem) {
         BlockEntity be = level.getBlockEntity(pos);
-
-        // this should never happen? if the copycat block is null this shouldn't even be triggered but safe checking i guess
         if (be == null) return;
-        BlockState actualState = level.getBlockState(pos);
 
+        BlockState currentState = level.getBlockState(pos);
 
-        // type checking for a copycats+ copycat
-        CreateBuildingWands.LOGGER.info("BE Class: {}", be.getClass().getName());
-        CreateBuildingWands.LOGGER.info("Interfaces: {}", java.util.Arrays.toString(be.getClass().getInterfaces()));
+        if (materialState.is(currentState.getBlock())) return;
 
         switch (be) {
-            case IMultiStateCopycatBlockEntity multiStateCopycatBE -> {
-                if (materialState.getBlock() == level.getBlockState(pos).getBlock()) {
-                    return;
-                }
-                System.out.println(">>> Matched IMultiStateCopycatBlockEntity (multistate)");
-                String property = specificProperty != null ? specificProperty : multiStateCopycatBE.getBlock().defaultProperty();
-
-                System.out.println("Applying to multistate property: " + property);
-
-                multiStateCopycatBE.setMaterial(property, materialState);
-                multiStateCopycatBE.setConsumedItem(property, materialItemStack);
-                multiStateCopycatBE.notifyUpdate();
-                be.setChanged();
-                level.sendBlockUpdated(pos, actualState, actualState, 3);
-
-                System.out.println("Applied material to multistate copycat");
+            case IMultiStateCopycatBlockEntity multiStateBE -> {
+                String property = multiStateBE.getBlock().defaultProperty();
+                multiStateBE.setMaterial(property, materialState);
+                multiStateBE.setConsumedItem(property, consumedItem);
+                multiStateBE.notifyUpdate();
             }
             case ICopycatBlockEntity copycatBE -> {
-                CreateBuildingWands.LOGGER.info("BE class is type: {}", be);
-                CreateBuildingWands.LOGGER.info("materialState.getBlock() is: {}", materialState.getBlock());
-                CreateBuildingWands.LOGGER.info("level.getBlockState(pos).getBlock() is: {}", level.getBlockState(pos).getBlock());
-                if (materialState.getBlock() == level.getBlockState(pos).getBlock()) {
-                    return;
-                }
-                CreateBuildingWands.LOGGER.info("materialState value is: {}", materialState);
-                CreateBuildingWands.LOGGER.info("materialItemStack value is: {}", materialItemStack);
-
                 copycatBE.setMaterial(materialState);
-                copycatBE.setConsumedItem(materialItemStack);
+                copycatBE.setConsumedItem(consumedItem);
                 copycatBE.notifyUpdate();
-                be.setChanged();
-                level.sendBlockUpdated(pos, actualState, actualState, 3);
             }
-            // type checking for a create copycat
             case CopycatBlockEntity createCopycatBE -> {
-                if (materialState.getBlock() == level.getBlockState(pos).getBlock()) {
-                    return;
-                }
                 createCopycatBE.setMaterial(materialState);
-                createCopycatBE.setConsumedItem(materialItemStack);
+                createCopycatBE.setConsumedItem(consumedItem);
                 createCopycatBE.notifyUpdate();
-                createCopycatBE.setChanged();
-                level.sendBlockUpdated(pos, actualState, actualState, 3);
             }
-            // this should never happen
-            default -> System.out.println("ERROR: block entity does not match a copycat type");
+            default -> CreateBuildingWands.LOGGER.warn("applyCopycatMaterial: unrecognized BE type {}", be.getClass().getName());
         }
+
+        be.setChanged();
+        level.sendBlockUpdated(pos, currentState, currentState, Block.UPDATE_ALL);
+
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.getChunkSource().blockChanged(pos);
         }
