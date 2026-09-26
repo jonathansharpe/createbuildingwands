@@ -1,12 +1,12 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand;
 
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandPlacementContext;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
-import com.copycatsplus.copycats.CCBlocks;
-import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
-import net.minecraft.client.multiplayer.chat.report.ChatReport;
+import com.ibm.icu.impl.ReplaceableUCharacterIterator;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,7 +15,6 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -32,12 +31,9 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import com.simibubi.create.content.decoration.copycat.CopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
-import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlockEntity;
-import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
@@ -49,10 +45,7 @@ import net.minecraft.world.level.block.state.properties.Property;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
 
 // SPAGHETTI
 public class AndesiteWandItem extends Item {
@@ -126,103 +119,82 @@ public class AndesiteWandItem extends Item {
         }
     }
 
-    /**
-     * right click while looking at a block
-     * TODO find a way to extend reach, at a configurable distance like with effortless
-     * @param pContext the context needed to do the thing
-     * @return the result of the interaction
-     */
     @Override
-    public @NotNull InteractionResult useOn(UseOnContext pContext) {
-        // the Level type is seemingly the entire dimension that a player is in. it has fields like max size, world border, etc. i guess we need that so we can place blocks in the world
-        Level level = pContext.getLevel();
+    public @NotNull InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        Player player = context.getPlayer();
+        ItemStack heldWand = context.getItemInHand();
+        BlockPos clickedPos = context.getClickedPos();
+        Direction clickedFace = context.getClickedFace();
+        BlockPlaceContext placeContext = new BlockPlaceContext(context);
 
-        // the coordinates of the block
-        BlockPos clickedPos = pContext.getClickedPos();
+        if (player == null) return InteractionResult.FAIL;
 
-        // ItemStack is an 
-        ItemStack heldWand = pContext.getItemInHand();
-
-        // the player is the player, makes sense right
-        Player player = pContext.getPlayer();
-
-        Direction clickedFace = pContext.getClickedFace();
-
-        BlockPlaceContext placeContext = new BlockPlaceContext(pContext);
-
-        // Client-side: drive visual preview between clicks
         if (level.isClientSide()) {
-            if (player != null && !player.isCrouching()) {
-                WandMode currentModeClient = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
-                Direction clickedFaceClient = pContext.getClickedFace();
-
-                if (heldWand.has(ModDataComponents.WAND_START_POS.get())) {
-                    // Second click: clear active preview state; server will handle actual placement
-                    WandClientPreview.updateActiveState(null, null);
-                    WandClientPreview.clearPreviewPositions();
-                } else {
-                    // First click: set start position, mode, and preview block for client-side preview
-                    BlockPos startPosClient = clickedPos.relative(clickedFaceClient);
-                    WandClientPreview.updateActiveState(startPosClient, currentModeClient);
-
-                    // Prefer copycat block for preview if set, otherwise use regular block
-                    Block copycat = heldWand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
-                    Block regular = heldWand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
-
-                    CreateBuildingWands.LOGGER.info("regular block is: {}", regular);
-                    
-                    ItemStack selection = (copycat != null && !copycat.defaultBlockState().isAir())
-                        ? new ItemStack(copycat.asItem())
-                        : (regular != null ? new ItemStack(regular.asItem()) : ItemStack.EMPTY);
-                    WandClientPreview.setPreviewBlock(selection);
-                }
-            }
+            handleClientSide(heldWand, player, clickedPos, clickedFace);
             return InteractionResult.SUCCESS;
         }
 
-        // presumably this checks to make sure there actually is a player, but shouldn't this be superfluous? how would a wand ever be right clicked if there's no player? idk i will try commenting it out when everything else works
         if (!(player instanceof ServerPlayer serverPlayer)) return InteractionResult.FAIL;
 
-        // checks if the player is shifting, which will bring up the config menu instead. this is the same logic regardless of whether or not the player is looking at a block
         if (player.isCrouching()) {
-            openConfig(level, player, pContext.getHand());
+            openConfig(level, player, context.getHand());
             return InteractionResult.CONSUME;
         }
 
-        // Prefer copycat block if set, otherwise use regular block
-        WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
         Block copycatBlock = heldWand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
-        Block overrideMaterial = heldWand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
+        Block regularBlock = heldWand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
 
-        CreateBuildingWands.LOGGER.info("overrideMaterial (material to apply to copycat) is: {}", overrideMaterial);
+        boolean isCopycat = copycatBlock != null && !copycatBlock.defaultBlockState().isAir();
+        Block blockToPlace = isCopycat ? copycatBlock : regularBlock;
 
-        Block blockToPlace;
-        boolean isCopycatPlacement = false;
-        if (copycatBlock != null && !copycatBlock.defaultBlockState().isAir()) {
-            System.out.println("we are placing copycats");
-            blockToPlace = copycatBlock;
-            isCopycatPlacement = true;
-        } else if (overrideMaterial != null && !overrideMaterial.defaultBlockState().isAir()) {
-            System.out.println("we are not placing copycats");
-            blockToPlace = overrideMaterial;
-        } else {
-            return InteractionResult.PASS;
-        }
+        if (blockToPlace == null || blockToPlace.defaultBlockState().isAir()) return InteractionResult.PASS;
 
-        ItemStack materialStack = (overrideMaterial != null) ? new ItemStack(overrideMaterial.asItem()) : ItemStack.EMPTY;
-        CreateBuildingWands.LOGGER.info("materialStack is: {}", materialStack);
+        ItemStack materialStack = regularBlock != null ? new ItemStack(regularBlock.asItem()) : ItemStack.EMPTY;
+        WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
 
-        boolean successfulPlacement = switch (currentMode) {
+        boolean placed = switch (currentMode) {
             case SINGLE -> {
-                BlockPos targetPos = clickedPos.relative(pContext.getClickedFace());
-                yield this.placeBlock(level, serverPlayer, targetPos, blockToPlace, materialStack, isCopycatPlacement, clickedFace, placeContext);
+                BlockPos targetPos = clickedPos.relative(clickedFace);
+                WandPlacementContext ctx = new WandPlacementContext(blockToPlace, materialStack, isCopycat, placeContext);
+
+                if (!player.isCreative()) {
+                    List<ItemStack> required = getRequiredMaterialStacks(heldWand, blockToPlace, 1, player.level().registryAccess());
+                    if (!tryConsumeItems(player.getInventory(), required)) {
+                        player.displayClientMessage(
+                                Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
+                        yield false;
+                    }
+                }
+                yield placeBlock(serverPlayer, targetPos, ctx);
             }
-            // the below cases all have the same result because placeMultiple handles the mode
             case LINE, PLANE, CUBE -> placeMultiple(currentMode, level, serverPlayer, heldWand, placeContext);
             case SPHERE -> false;
         };
 
-        return successfulPlacement ? InteractionResult.CONSUME : InteractionResult.FAIL;
+        return placed ? InteractionResult.CONSUME : InteractionResult.FAIL;
+    }
+
+    private void handleClientSide(ItemStack heldWand, Player player, BlockPos clickedPos, Direction clickedFace) {
+        if (player.isCrouching()) return;
+
+        WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
+
+        if (heldWand.has(ModDataComponents.WAND_START_POS.get())) {
+            WandClientPreview.updateActiveState(null, null);
+            WandClientPreview.clearPreviewPositions();
+        } else {
+            WandClientPreview.updateActiveState(clickedPos.relative(clickedFace), currentMode);
+
+            Block copycat = heldWand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+            Block regular = heldWand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
+
+            ItemStack previewBlock = copycat != null && !copycat.defaultBlockState().isAir()
+                    ? new ItemStack(copycat.asItem())
+                    : regular != null ? new ItemStack(regular.asItem()) : ItemStack.EMPTY;
+
+            WandClientPreview.setPreviewBlock(previewBlock);
+        }
     }
 
     private static <T extends Comparable<T>> BlockState applyProperty(BlockState state, Property<T> prop, String value) {
@@ -231,27 +203,46 @@ public class AndesiteWandItem extends Item {
                 .orElse(state);
     }
 
-    /**
-     * places a block! who knew it could be so complicated?
-     * @param level the minecraft world
-     * @param player the player holding the wand
-     * @param pos the position at which the block will be placed
-     * @param block the block to place, could be a block, stair, slab, or copycat
-     * @param material the material that is used if a copycat is in the main block slot. can never be a copycat, because if you do it crashes the game
-     * @param isCopycat is the first slot a copycat or not?
-     * @param clickedFace the face at which the click is performed, used to determine direction for slabs/stairs
-     * @param originalContext needed to make the placement of copycats work
-     * @return true if the block placed, false if not
-     */
-    private boolean placeBlock(Level level, ServerPlayer player, BlockPos pos, Block block, ItemStack material, boolean isCopycat, Direction clickedFace, BlockPlaceContext originalContext) {
+    private List<ItemStack> getRequiredMaterialStacks(ItemStack wand, Block copycatBlock, int count, HolderLookup.Provider registries) {
+        List<ItemStack> required = new ArrayList<>();
+        required.add(new ItemStack(copycatBlock.asItem(), count));
+
+        if (!(copycatBlock instanceof IMultiStateCopycatBlock)) {
+            Block regularBlock = wand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
+            if (regularBlock != null) required.add(new ItemStack(regularBlock.asItem(), count));
+            return required;
+        }
+
+        WandMaterialComponent component = wand.getOrDefault(
+                ModDataComponents.WAND_MATERIALS.get(),
+                WandMaterialComponent.createEmptyDefault()
+        );
+
+        MaterialItemStorage storage = component.toStorage(registries);
+
+        Map<Item, Integer> itemCounts = new HashMap<>();
+        for (String key : ((IMultiStateCopycatBlock) copycatBlock).storageProperties()) {
+            if (!"true".equals(component.blockStateProps().get(key))) continue;
+            MaterialItemStorage.MaterialItem item = storage.getMaterialItem(key);
+            if (item == null || item.consumedItem().isEmpty()) continue;
+            itemCounts.merge(item.consumedItem().getItem(), count, Integer::sum);
+        }
+
+        itemCounts.forEach((item, total) -> required.add(new ItemStack(item, total)));
+        return required;
+    }
+
+    private boolean placeBlock(ServerPlayer player, BlockPos pos, WandPlacementContext ctx) {
+
+        Level level = player.level();
+        Direction clickedFace = ctx.blockPlaceContext().getClickedFace();
 
         if (!level.getBlockState(pos).canBeReplaced()) return false;
-        if (player == null) return false;
 
-        BlockPlaceContext localContext = BlockPlaceContext.at(originalContext, pos, clickedFace);
-        BlockState stateToPlace = getOrientedBlockState(block, localContext);
+        BlockPlaceContext localContext = BlockPlaceContext.at(ctx.blockPlaceContext(), pos, clickedFace);
+        BlockState stateToPlace = getOrientedBlockState(ctx.blockToPlace(), localContext);
 
-        if (!isCopycat) {
+        if (!ctx.isCopycat()) {
             return level.setBlock(pos, stateToPlace, Block.UPDATE_ALL);
         }
         WandMaterialComponent materialComponent = player.getItemInHand(InteractionHand.MAIN_HAND)
@@ -259,15 +250,15 @@ public class AndesiteWandItem extends Item {
 
         BlockState finalStateToPlace = stateToPlace;
 
-        if (block instanceof IMultiStateCopycatBlock copycatBlock) {
+        if (ctx.blockToPlace() instanceof IMultiStateCopycatBlock copycatBlock) {
 
-            for (Property<?> prop : block.defaultBlockState().getProperties()) {
+            for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
                 if (prop instanceof BooleanProperty boolProp && copycatBlock.storageProperties().contains(boolProp.getName())) {
                     finalStateToPlace = finalStateToPlace.setValue(boolProp, false);
                 }
             }
 
-            for (Property<?> prop : block.defaultBlockState().getProperties()) {
+            for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
                 String value = materialComponent.blockStateProps().get(prop.getName());
                 if (value == null) continue;
                 finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
@@ -302,7 +293,6 @@ public class AndesiteWandItem extends Item {
             }
 
             syncBE(level, pos, targetBE, oldState, finalStateToPlace);
-            return true;
         } else {
             // non-multistate copycat block logic
             Block regularBlock = player.getItemInHand(InteractionHand.MAIN_HAND)
@@ -317,8 +307,8 @@ public class AndesiteWandItem extends Item {
             applyCopycatMaterial(level, pos, materialState, consumedItem);
 
             syncBE(level, pos, level.getBlockEntity(pos), oldState, finalStateToPlace);
-            return true;
         }
+        return true;
     }
 
     private void syncBE(Level level, BlockPos pos, BlockEntity be, BlockState oldState, BlockState newState) {
@@ -360,92 +350,104 @@ public class AndesiteWandItem extends Item {
      * @return true if the placement succeeded, false if not
      */
     private boolean placeMultiple(WandMode mode, Level level, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
-        boolean result = false;
-        boolean finished = false;
-        // TODO implement a randomizer functionality, using the create shuffle filter mod
-        // TODO fix this method so it just uses performPlacement but many times, should inherently fix the problem of the copycat texture not applying
-        if (!level.isClientSide) {
-            BlockPos clickedPos = context.getClickedPos();
-            Direction face = context.getClickedFace();
-            Block storedRegularBlock = wand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
-            Block storedCopycatBlock = wand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
-            if (storedRegularBlock == null) {
-                if (storedCopycatBlock != null) {
-                    player.displayClientMessage(Component.literal("Utilizing copycat config for block placement").withStyle(ChatFormatting.YELLOW), true);
-                } else {
-                    player.displayClientMessage(Component.literal("No block configured in wand").withStyle(ChatFormatting.RED), true);
-                    finished = true;
-                }
+        if (level.isClientSide) return false;
+
+        Block regularBlock = wand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
+        Block copycatBlock = wand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+        boolean useCopycat = copycatBlock != null;
+        Block blockToPlace = useCopycat ? copycatBlock : regularBlock;
+
+        if (blockToPlace == null) {
+            player.displayClientMessage(
+                    Component.literal("No block configured in wand").withStyle(ChatFormatting.RED), true );
+            return false;
+        }
+
+        if (player.isShiftKeyDown()) {
+            if (wand.has(ModDataComponents.WAND_START_POS.get())) {
+                wand.remove(ModDataComponents.WAND_START_POS.get());
+                player.displayClientMessage(
+                        Component.literal(mode.name() + " selection cancelled.").withStyle(ChatFormatting.RED), true);
             }
-            if (!finished) {
-                if (player.isShiftKeyDown()) {
-                    if (wand.has(ModDataComponents.WAND_START_POS.get())) {
-                        wand.remove(ModDataComponents.WAND_START_POS.get());
-                        player.displayClientMessage(Component.literal(mode.name() + " selection cancelled.").withStyle(ChatFormatting.YELLOW),true );
-                    }
-                    result = true;
-                } else if (!wand.has(ModDataComponents.WAND_START_POS.get())) {
-                    wand.set(ModDataComponents.WAND_START_POS.get(), clickedPos);
-                    player.displayClientMessage(Component.literal("Start position set"), true);
-                    result = true;
-                } else {
-                    BlockPos startPos = wand.get(ModDataComponents.WAND_START_POS.get());
-                    boolean useCopycat = storedCopycatBlock != null;
-                    Block blockToPlace = useCopycat ? storedCopycatBlock : storedRegularBlock;// TODO remove this if statement, this should be handled in the menu so you can't even insert an item thats not a copycat block
-                    if (useCopycat && !(storedCopycatBlock instanceof CopycatBlock) && !(storedCopycatBlock instanceof ICopycatBlock)) {
-                        player.displayClientMessage(Component.literal("Copycat slot must contain a copycat block type").withStyle(ChatFormatting.RED), true);
-                    } else {
-                        ItemStack regularStack = ItemStack.EMPTY;
-                        if (storedRegularBlock != null) {
-                            regularStack = new ItemStack(storedRegularBlock.asItem());
-                            // TODO this should also be handled by the slot handler
-                            if (!(regularStack.getItem() instanceof BlockItem)) {
-                                finished = true;
-                            }
-                        }
-                        if (!finished) {// this should always be true but the IDE was complaining
-                            assert startPos != null;// switch block will get list of block positions needed to place the blocks given the shape
-                            // TODO implement more shapes
-                            List<BlockPos> positions = switch (mode) {
-                                case LINE -> BlockPlaceHelper.lineBlockPositions(startPos, clickedPos);
-                                case PLANE -> BlockPlaceHelper.planeBlockPositions(startPos, clickedPos, face);
-                                case CUBE -> BlockPlaceHelper.cubeBlockPositions(startPos, clickedPos);
-                                default -> List.of();
-                            };// if the positions list happens to be empty, shouldn't happen but a good failsafe
-                            if (!positions.isEmpty()) {// will consume items if player is in survival, with messages if not enough items are available
-                                if (!player.isCreative()) {
-                                    // TODO logic here will need to be improved as placing 5 blocks of full copycat slabs should consume 10 instead of 5 like this logic indicates
-                                    if (!consumeMultipleItems(player.getInventory(), storedRegularBlock, positions.size())) {
-                                        player.displayClientMessage(
-                                                Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
-                                        finished = true;
-                                    } else if (useCopycat && !consumeMultipleItems(player.getInventory(), storedRegularBlock, positions.size()) && !consumeMultipleItems(player.getInventory(), storedCopycatBlock, positions.size())) {
-                                        player.displayClientMessage(
-                                                Component.literal("Not enough material blocks to complete the placement").withStyle(ChatFormatting.RED), true);
-                                        finished = true;
-                                    }
-                                }
-                                if (!finished) {// get a placed counter, which will go up based on what blocks are actually placed. note that the area could be bigger than the blocks actually modified, so we can't just use positions.size()
-                                    int placedCount = 0;
-                                    for (BlockPos pos : positions) {
-                                        if (placeBlock(level, player, pos, blockToPlace, regularStack, useCopycat, face, context)) {
-                                            placedCount++;
-                                        }
-                                    }// remove the start position since we've placed blocks now
-                                    wand.remove(ModDataComponents.WAND_START_POS.get());// message that blocks were placed
-                                    player.displayClientMessage(
-                                            Component.literal("Placed " + placedCount + " blocks in a " + mode.name().toLowerCase())
-                                                    .withStyle(ChatFormatting.GREEN), true);
-                                    result = placedCount > 0;
-                                }
-                            }
-                        }
-                    }
-                }
+            return true;
+        }
+
+        if (!wand.has(ModDataComponents.WAND_START_POS.get())) {
+            wand.set(ModDataComponents.WAND_START_POS.get(), context.getClickedPos());
+            player.displayClientMessage(Component.literal("Start position set"), true);
+            return true;
+        }
+
+        BlockPos startPos = wand.get(ModDataComponents.WAND_START_POS.get());
+        BlockPos clickedPos = context.getClickedPos();
+        Direction face = context.getClickedFace();
+
+        List<BlockPos> positions = switch (mode) {
+            case LINE -> BlockPlaceHelper.lineBlockPositions(startPos, clickedPos);
+            case PLANE -> BlockPlaceHelper.planeBlockPositions(startPos, clickedPos, face);
+            case CUBE -> BlockPlaceHelper.cubeBlockPositions(startPos, clickedPos);
+            default -> List.of();
+        };
+
+        if (positions.isEmpty()) return false;
+
+        ItemStack regularStack = regularBlock != null ? new ItemStack(regularBlock.asItem()) : ItemStack.EMPTY;
+        WandPlacementContext ctx = new WandPlacementContext(blockToPlace, regularStack, useCopycat, context);
+
+        if (!player.isCreative()) {
+            List<ItemStack> required = getRequiredMaterialStacks(wand, blockToPlace, positions.size(), player.level().registryAccess());
+            if (!tryConsumeItems(player.getInventory(), required)) {
+                player.displayClientMessage(
+                        Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
+                return false;
             }
         }
 
-        return result;
+        int placedCount = 0;
+        for (BlockPos pos : positions) {
+            if (placeBlock(player, pos, ctx)) {
+                placedCount++;
+            }
+        }
+
+        wand.remove(ModDataComponents.WAND_START_POS.get());
+        player.displayClientMessage(
+                Component.literal("Placed " + placedCount + " blocks in a " + mode.name().toLowerCase())
+                        .withStyle(ChatFormatting.GREEN), true);
+
+        return placedCount > 0;
+    }
+
+    private boolean tryConsumeItems(Inventory inventory, List<ItemStack> required) {
+        Map<ItemStack, List<int[]>> consumptionPlan = new LinkedHashMap<>();
+
+        for (ItemStack requirement : required) {
+            if (requirement.isEmpty()) continue;
+
+            List<int[]> slots = new ArrayList<>();
+            int found = 0;
+
+            for (int i = 0; i < inventory.getContainerSize(); i++) {
+                ItemStack slot = inventory.getItem(i);
+                if (!slot.isEmpty() && ItemStack.isSameItem(slot, requirement)) {
+                    int toTake = Math.min(requirement.getCount() - found, slot.getCount());
+                    slots.add(new int[]{i, toTake});
+                    found += toTake;
+                    if (found >= requirement.getCount()) break;
+                }
+            }
+
+            if (found < requirement.getCount()) return false;
+            consumptionPlan.put(requirement, slots);
+        }
+
+        for (List<int[]> slots : consumptionPlan.values()) {
+            for (int[] slot : slots) {
+                inventory.getItem(slot[0]).shrink(slot[1]);
+            }
+        }
+
+        return true;
     }
 
     private BlockState getOrientedBlockState(Block block, BlockPlaceContext context) {
