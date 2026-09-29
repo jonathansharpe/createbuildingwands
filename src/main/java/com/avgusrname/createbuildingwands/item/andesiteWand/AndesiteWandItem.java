@@ -1,17 +1,32 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand;
 
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.WandClientPreview;
+import com.avgusrname.createbuildingwands.item.WandMode;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandPlacementContext;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
+import com.avgusrname.createbuildingwands.util.BlockPlaceHelper;
+import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
+import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlockEntity;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
-import com.ibm.icu.impl.ReplaceableUCharacterIterator;
+import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -21,26 +36,10 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.entity.BlockEntity;
-
-import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
-import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
-import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlockEntity;
-
-import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.component.ModDataComponents;
-import com.avgusrname.createbuildingwands.item.WandClientPreview;
-import com.avgusrname.createbuildingwands.item.WandMode;
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandConfigMenu;
-import com.avgusrname.createbuildingwands.util.BlockPlaceHelper;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
@@ -62,7 +61,6 @@ public class AndesiteWandItem extends Item {
     public static void setMode(ItemStack wand, WandMode mode) {
         wand.set(ModDataComponents.WAND_MODE.get(), mode);
         WandMode confirmedMode = wand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
-        System.out.println("[WAND DEBUG - SETTER] Attempted to set: " + mode.name() + " | Confirmed Value: " + confirmedMode.name());
     }
 
     /**
@@ -95,19 +93,27 @@ public class AndesiteWandItem extends Item {
     }
 
     @Override
-    public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level pLevel, Player pPlayer, @NotNull InteractionHand pHand) {
-        ItemStack itemStack = pPlayer.getItemInHand(pHand);
-        if (pPlayer.isShiftKeyDown()) {
-            if (pLevel.isClientSide()) {
-                pPlayer.swing(pHand);
+    public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level level, Player player, @NotNull InteractionHand hand) {
+        ItemStack itemStack = player.getItemInHand(hand);
+        if (player.isShiftKeyDown()) {
+            if (level.isClientSide()) {
+                player.swing(hand);
             }
             else {
-                if (pPlayer instanceof ServerPlayer serverPlayer) {
-                    MenuProvider provider = this.getMenuProvider(pHand);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    if (itemStack.has(ModDataComponents.WAND_START_POS.get())) {
+                        itemStack.remove(ModDataComponents.WAND_START_POS.get());
+                        player.displayClientMessage(
+                                Component.literal("Start position cleared").withStyle(ChatFormatting.RED), true);
+                        PacketDistributor.sendToPlayer(serverPlayer, new WandPreviewPacket(List.of(), Optional.empty()));
+
+                        return InteractionResultHolder.consume(itemStack);
+                    }
+                    MenuProvider provider = this.getMenuProvider(hand);
 
                     serverPlayer.openMenu(
                         provider,
-                        buf -> buf.writeEnum(pHand)
+                        buf -> buf.writeEnum(hand)
                     );
                 }
             }
@@ -138,6 +144,14 @@ public class AndesiteWandItem extends Item {
         if (!(player instanceof ServerPlayer serverPlayer)) return InteractionResult.FAIL;
 
         if (player.isCrouching()) {
+            if (heldWand.has(ModDataComponents.WAND_START_POS.get())) {
+                heldWand.remove(ModDataComponents.WAND_START_POS.get());
+                player.displayClientMessage(
+                        Component.literal("Start position cleared").withStyle(ChatFormatting.RED), true);
+                PacketDistributor.sendToPlayer(serverPlayer, new WandPreviewPacket(List.of(), Optional.empty()));
+
+                return InteractionResult.CONSUME;
+            }
             openConfig(level, player, context.getHand());
             return InteractionResult.CONSUME;
         }
@@ -160,6 +174,7 @@ public class AndesiteWandItem extends Item {
 
                 if (!player.isCreative()) {
                     List<ItemStack> required = getRequiredMaterialStacks(heldWand, blockToPlace, 1, player.level().registryAccess());
+                    required.forEach(stack -> CreateBuildingWands.LOGGER.info("[WandDebug] required item: {} x {}", stack.getItem(), stack.getCount()));
                     if (!tryConsumeItems(player.getInventory(), required)) {
                         player.displayClientMessage(
                                 Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
@@ -205,9 +220,9 @@ public class AndesiteWandItem extends Item {
 
     private List<ItemStack> getRequiredMaterialStacks(ItemStack wand, Block copycatBlock, int count, HolderLookup.Provider registries) {
         List<ItemStack> required = new ArrayList<>();
-        required.add(new ItemStack(copycatBlock.asItem(), count));
 
-        if (!(copycatBlock instanceof IMultiStateCopycatBlock)) {
+        if (!(copycatBlock instanceof IMultiStateCopycatBlock multiState)) {
+            required.add(new ItemStack(copycatBlock.asItem(), count));
             Block regularBlock = wand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
             if (regularBlock != null) required.add(new ItemStack(regularBlock.asItem(), count));
             return required;
@@ -218,17 +233,23 @@ public class AndesiteWandItem extends Item {
                 WandMaterialComponent.createEmptyDefault()
         );
 
-        MaterialItemStorage storage = component.toStorage(registries);
+        long activeParts = multiState.storageProperties().stream()
+                .filter(key -> "true".equals(component.blockStateProps().get(key)))
+                .count();
 
-        Map<Item, Integer> itemCounts = new HashMap<>();
-        for (String key : ((IMultiStateCopycatBlock) copycatBlock).storageProperties()) {
+        required.add(new ItemStack(copycatBlock.asItem(), (int) (count * activeParts)));
+
+        MaterialItemStorage storage = component.toStorage(registries);
+        Set<Item> seen = new HashSet<>();
+        for (String key : multiState.storageProperties()) {
             if (!"true".equals(component.blockStateProps().get(key))) continue;
             MaterialItemStorage.MaterialItem item = storage.getMaterialItem(key);
             if (item == null || item.consumedItem().isEmpty()) continue;
-            itemCounts.merge(item.consumedItem().getItem(), count, Integer::sum);
+            if (seen.add(item.consumedItem().getItem())) {
+                required.add(new ItemStack(item.consumedItem().getItem(), count));
+            }
         }
 
-        itemCounts.forEach((item, total) -> required.add(new ItemStack(item, total)));
         return required;
     }
 
@@ -285,11 +306,19 @@ public class AndesiteWandItem extends Item {
             MaterialItemStorage wandStorage = materialComponent.toStorage(player.level().registryAccess());
             MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
 
+            Set<Item> seenItems = new HashSet<>();
             for (String key : wandStorage.getAllProperties()) {
                 MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
-                if (item != null && item.hasCustomMaterial()) {
-                    beStorage.storeMaterialItem(key, item);
-                }
+                if (item == null || !item.hasCustomMaterial()) continue;
+
+                Item consumedItemType = item.consumedItem().getItem();
+                boolean isDuplicate = !item.consumedItem().isEmpty() && !seenItems.add(consumedItemType);
+
+                MaterialItemStorage.MaterialItem toStore = isDuplicate
+                        ? new MaterialItemStorage.MaterialItem(item.material(), ItemStack.EMPTY, item.enableCT())
+                        : item;
+
+                beStorage.storeMaterialItem(key, toStore);
             }
 
             syncBE(level, pos, targetBE, oldState, finalStateToPlace);
@@ -422,6 +451,7 @@ public class AndesiteWandItem extends Item {
         Map<ItemStack, List<int[]>> consumptionPlan = new LinkedHashMap<>();
 
         for (ItemStack requirement : required) {
+            CreateBuildingWands.LOGGER.info("[WandDebug] tryConsumeItems processing: {} x{}", requirement.getItem(), requirement.getCount());
             if (requirement.isEmpty()) continue;
 
             List<int[]> slots = new ArrayList<>();

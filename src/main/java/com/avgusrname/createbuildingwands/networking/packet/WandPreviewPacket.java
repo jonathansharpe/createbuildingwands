@@ -48,6 +48,7 @@ public record WandPreviewPacket(List<BlockPos> positions, Optional<ItemStack> ta
 
                 if (payload.positions().isEmpty() || payload.targetStack().isEmpty()) {
                     CreateBuildingWands.LOGGER.debug("Received WandPreviewPacket to clear preview");
+                    WandClientPreview.updateActiveState(null, null);
                     WandClientPreview.clearPreviewPositions();
                 } else {
                     CreateBuildingWands.LOGGER.debug("Received WandPreviewPacket to set preview with {} positions", payload.positions().size());
