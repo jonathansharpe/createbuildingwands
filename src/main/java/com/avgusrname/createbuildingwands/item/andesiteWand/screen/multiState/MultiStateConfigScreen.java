@@ -1,7 +1,8 @@
-package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.networking.packet.MultiStateTogglePacket;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -12,8 +13,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Optional;
 
 public abstract class MultiStateConfigScreen<T extends MultiStateConfigMenu> extends AbstractContainerScreen<T> {
     protected final Button[] partButtons;
@@ -81,7 +80,7 @@ public abstract class MultiStateConfigScreen<T extends MultiStateConfigMenu> ext
             if (btn == null) continue;
 
             String key = menu.getOrderedKeys().get(i);
-            boolean isActive = component.isActive(key);
+            boolean isActive = menu.isPartActiveFromComponent(component, i);
             btn.setMessage(Component.literal(formatKeyName(key) + (isActive ? ": ON" : ": OFF")));
         }
 

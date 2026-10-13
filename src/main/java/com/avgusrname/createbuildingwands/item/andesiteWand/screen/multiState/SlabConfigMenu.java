@@ -1,6 +1,8 @@
-package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ModMenuTypes;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import com.simibubi.create.AllBlocks;
@@ -8,7 +10,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -16,7 +17,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public class SlabConfigMenu extends MultiStateConfigMenu {
     public static final List<String> ORDERED_KEYS = List.of("bottom", "top");
@@ -64,7 +64,7 @@ public class SlabConfigMenu extends MultiStateConfigMenu {
 
         if (!nowActive) {
             HolderLookup.Provider registries = player.level().registryAccess();
-            MaterialItemStorage storage = updated.toStorage(registries);
+            MaterialItemStorage storage = updated.toStorage(wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT), registries);
             storage.storeMaterialItem(partKey, new MaterialItemStorage.MaterialItem(
                     AllBlocks.COPYCAT_BASE.getDefaultState(), ItemStack.EMPTY
             ));

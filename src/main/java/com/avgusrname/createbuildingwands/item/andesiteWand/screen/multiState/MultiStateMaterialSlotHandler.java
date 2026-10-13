@@ -1,4 +1,4 @@
-package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState;
 
 import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;

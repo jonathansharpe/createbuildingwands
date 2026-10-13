@@ -1,10 +1,10 @@
-package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import com.simibubi.create.AllBlocks;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.util.datafix.fixes.ItemStackTagFix;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -16,7 +16,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.SlotItemHandler;
-import org.checkerframework.checker.units.qual.N;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -82,7 +81,7 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
     }
 
     protected void loadSlotsFromWand() {
-        MaterialItemStorage storage = getCurrentComponent().toStorage(player.level().registryAccess());
+        MaterialItemStorage storage = getCurrentComponent().toStorage(wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT), player.level().registryAccess());
 
         for (int i = 0; i < getOrderedKeys().size(); i++) {
             MaterialItemStorage.MaterialItem item = storage.getMaterialItem(getOrderedKeys().get(i));
@@ -96,7 +95,7 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
 
         WandMaterialComponent current = getCurrentComponent();
         HolderLookup.Provider registries = player.level().registryAccess();
-        MaterialItemStorage storage = current.toStorage(registries);
+        MaterialItemStorage storage = current.toStorage(wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT), registries);
 
         BlockState newMaterial = AllBlocks.COPYCAT_BASE.getDefaultState();
         if (!newConsumedItem.isEmpty() && newConsumedItem.getItem() instanceof BlockItem blockItem) {
@@ -123,7 +122,7 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
 
         if (!nowActive) {
             HolderLookup.Provider registries = player.level().registryAccess();
-            MaterialItemStorage storage = updated.toStorage(registries);
+            MaterialItemStorage storage = updated.toStorage(wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT), registries);
             storage.storeMaterialItem(propertyKey, new MaterialItemStorage.MaterialItem(
                     AllBlocks.COPYCAT_BASE.getDefaultState(), ItemStack.EMPTY
             ));
@@ -185,6 +184,14 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
             return;
         }
         super.clicked(slotId, button, clickType, player);
+    }
+
+    protected boolean isPartActiveForDisplay(int slot) {
+        return isPartActive(slot);
+    }
+
+    public boolean isPartActiveFromComponent(WandMaterialComponent component, int slot) {
+        return component.isActive(getOrderedKeys().get(slot));
     }
 
     @Override

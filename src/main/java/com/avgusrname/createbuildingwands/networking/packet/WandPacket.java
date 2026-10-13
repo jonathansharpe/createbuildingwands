@@ -6,10 +6,12 @@ import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
 import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.item.andesiteWand.AndesiteWandItem;
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ByteConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.ByteConfigMenu;
 
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.SlabConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.HalfLayerConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.SlabConfigMenu;
 import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
+import com.copycatsplus.copycats.content.copycat.half_layer.CopycatHalfLayerBlock;
 import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -102,6 +104,20 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
                                 @Override
                                 public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
                                     return new SlabConfigMenu(id, inv, payload.hand());
+                                }
+                            }, buf -> buf.writeEnum(payload.hand()));
+                        }
+                        case CopycatHalfLayerBlock copycatHalfLayerBlock -> {
+                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening HalfLayerConfigMenu");
+                            serverPlayer.openMenu(new MenuProvider() {
+                                @Override
+                                public Component getDisplayName() {
+                                    return Component.literal("Half Layer Configuration");
+                                }
+
+                                @Override
+                                public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
+                                    return new HalfLayerConfigMenu(id, inv, payload.hand());
                                 }
                             }, buf -> buf.writeEnum(payload.hand()));
                         }

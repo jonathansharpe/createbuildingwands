@@ -35,10 +35,9 @@ public record WandMaterialComponent(CompoundTag materialData, Map<String, String
         return withBlockStateProp(key, String.valueOf(active));
     }
 
-    public MaterialItemStorage toStorage(HolderLookup.Provider registries) {
-        Block block = CCBlocks.COPYCAT_BYTE.get();
+    public MaterialItemStorage toStorage(Block copycatBlock, HolderLookup.Provider registries) {
         MaterialItemStorage storage = MaterialItemStorage.create(
-                ((IMultiStateCopycatBlock) block).storageProperties()
+                ((IMultiStateCopycatBlock) copycatBlock).storageProperties()
         );
         storage.deserialize(materialData, registries);
         return storage;

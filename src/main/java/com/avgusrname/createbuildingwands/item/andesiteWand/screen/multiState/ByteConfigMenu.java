@@ -1,23 +1,14 @@
-package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState;
 
-import com.avgusrname.createbuildingwands.component.ModDataComponents;
-
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ModMenuTypes;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
-import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
-import com.simibubi.create.AllBlocks;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;

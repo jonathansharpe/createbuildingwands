@@ -1,6 +1,7 @@
-package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.networking.packet.MultiStateTogglePacket;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
@@ -8,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-public class SlabConfigScreen extends MultiStateConfigScreen<SlabConfigMenu>{
+public class SlabConfigScreen extends MultiStateConfigScreen<SlabConfigMenu> {
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
             CreateBuildingWands.MODID, "textures/gui/slab_config.png");
 

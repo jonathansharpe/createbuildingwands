@@ -3,6 +3,7 @@ package com.avgusrname.createbuildingwands;
 
 import com.avgusrname.createbuildingwands.item.ModItems;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.*;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.*;
 import com.avgusrname.createbuildingwands.networking.packet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,10 @@ public class CreateBuildingWands {
                     ModMenuTypes.SLAB_CONFIG_MENU.get(),
                     SlabConfigScreen::new
             );
+            event.register(
+                    ModMenuTypes.HALF_LAYER_CONFIG_MENU.get(),
+                    HalfLayerConfigScreen::new
+            );
         }
 
         @SubscribeEvent
@@ -95,6 +100,18 @@ public class CreateBuildingWands {
                             case "axis" -> {
                                 if (menu instanceof SlabConfigMenu slabMenu) {
                                     slabMenu.handleAxisChange(payload.value());
+                                }
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) {
+                                    halfMenu.handleAxisChange(payload.value());
+                                }
+                            }
+                            case "half" -> {
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) halfMenu.handleHalfChange(payload.value());
+                            }
+                            case "layer_change" -> {
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) {
+                                    String[] parts = payload.value().split(":");
+                                    halfMenu.handleLayerChange(parts[0], Integer.parseInt(parts[1]));
                                 }
                             }
                         }
