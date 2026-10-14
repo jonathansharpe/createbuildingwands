@@ -15,7 +15,7 @@ import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlockEntity;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
-import com.ibm.icu.impl.Assert;
+import com.electronwill.nightconfig.core.io.ParsingException;
 import com.simibubi.create.content.decoration.copycat.CopycatBlockEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -222,9 +222,25 @@ public class AndesiteWandItem extends Item {
                 WandMaterialComponent.createEmptyDefault()
         );
 
+        var currentStorage = multiState.storageProperties();
+        var currentBlockStateProps = component.blockStateProps();
+
         long activeParts = multiState.storageProperties().stream()
                 .filter(key -> "true".equals(component.blockStateProps().get(key)))
                 .count();
+
+        // TODO fix the following so the active parts are correctly counted
+        long enabledPosLayers = multiState.storageProperties().stream()
+                .filter(key -> "positive_layers".equals(component.blockStateProps().get(key)))
+                .count();
+
+        long enabledNegLayers = multiState.storageProperties().stream()
+                .filter(key -> "negative_layers".equals(component.blockStateProps().get(key)))
+                .count();
+
+        // find all layers enabled
+        // get the storage properties
+        //long totalLayers = multiState.storageProperties().stream(key -> "negative_layers".equals(component.blockStateProps().get(key)));
 
         required.add(new ItemStack(copycatBlock.asItem(), (int) (count * activeParts)));
 
@@ -274,7 +290,6 @@ public class AndesiteWandItem extends Item {
                 finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
             }
 
-            // TODO this needs to check if either something is true, or if any value is greater than 0, like if there are more than 0 half layers enabled
             boolean anyActive =
                     (copycatBlock.storageProperties().stream().anyMatch(key -> "true".equals(materialComponent.blockStateProps().get(key)))) ||
                             (copycatBlock.storageProperties().stream().anyMatch(key -> 0 < Integer.parseInt(materialComponent.blockStateProps().getOrDefault(key, String.valueOf(HalfLayerConfigMenu.DEFAULT_LAYERS)))));
@@ -368,7 +383,6 @@ public class AndesiteWandItem extends Item {
     /**
      * places many blocks at a time, according to the user-defined shape
      * @param mode the shape the player wants to place blocks in, like line, single, plane, etc
-     * @param level the minecraft world
      * @param player player holding the wand
      * @param wand wand held by the player
      * @param context context or something

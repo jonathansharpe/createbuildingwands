@@ -6,6 +6,7 @@ import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialC
 import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import com.simibubi.create.AllBlocks;
+import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
@@ -13,6 +14,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import oshi.jna.platform.windows.PowrProf;
 
 import java.util.HashMap;
 import java.util.List;
@@ -103,16 +105,11 @@ public class SlabConfigMenu extends MultiStateConfigMenu {
         saveSlotMaterialToWand(ORDERED_KEYS.get(slot), stack);
     }
 
-    public void handleAxisChange(String axis) {
+    public void handleServerAxisChange(String axis) {
         if (this.wandItem.isEmpty()) return;
 
-        WandMaterialComponent current = wandItem.getOrDefault(
-                ModDataComponents.WAND_MATERIALS.get(),
-                WandMaterialComponent.createEmptyDefault()
-        );
-
-        this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
-                current.withBlockStateProp(AXIS_KEY, axis));
+        WandMaterialComponent current = getCurrentComponent();
+        this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),current.withBlockStateProp(AXIS_KEY, axis));
         this.broadcastChanges();
     }
 

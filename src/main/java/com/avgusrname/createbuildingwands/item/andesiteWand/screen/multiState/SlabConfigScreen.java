@@ -33,7 +33,7 @@ public class SlabConfigScreen extends MultiStateConfigScreen<SlabConfigMenu> {
 
         btnAxisY = Button.builder(Component.literal("Y"), btn ->
                 sendAxisChange("y"))
-                .bounds(axisX + 34, axisY, 30, 20).build();
+                .bounds(axisX + 30, axisY, 30, 20).build();
 
         btnAxisZ = Button.builder(Component.literal("Z"), btn ->
                 sendAxisChange("z"))

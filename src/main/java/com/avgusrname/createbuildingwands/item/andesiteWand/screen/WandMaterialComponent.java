@@ -35,6 +35,10 @@ public record WandMaterialComponent(CompoundTag materialData, Map<String, String
         return withBlockStateProp(key, String.valueOf(active));
     }
 
+    public WandMaterialComponent withAxisActive(String key, String axis) {
+        return withBlockStateProp(key, axis);
+    }
+
     public MaterialItemStorage toStorage(Block copycatBlock, HolderLookup.Provider registries) {
         MaterialItemStorage storage = MaterialItemStorage.create(
                 ((IMultiStateCopycatBlock) copycatBlock).storageProperties()

@@ -6,7 +6,6 @@ import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
-import com.ibm.icu.text.BidiTransform;
 import com.simibubi.create.AllBlocks;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.network.FriendlyByteBuf;
@@ -109,7 +108,7 @@ public class HalfLayerConfigMenu extends MultiStateConfigMenu {
         saveSlotMaterialToWand(ORDERED_KEYS.get(slot), stack);
     }
 
-    public void handleLayerChange(String layerKey, int value) {
+    public void handleServerLayerChange(String layerKey, int value) {
         if (this.wandItem.isEmpty()) return;
         int newLayers = Math.clamp(value, MIN_LAYERS, MAX_LAYERS);
         this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
@@ -117,7 +116,7 @@ public class HalfLayerConfigMenu extends MultiStateConfigMenu {
         this.broadcastChanges();
     }
 
-    public void handleAxisChange(String axis) {
+    public void handleServerAxisChange(String axis) {
         if (this.wandItem.isEmpty()) return;
 
         WandMaterialComponent current = getCurrentComponent();
@@ -127,7 +126,7 @@ public class HalfLayerConfigMenu extends MultiStateConfigMenu {
         this.broadcastChanges();
     }
 
-    public void handleHalfChange(String half) {
+    public void handleServerHalfChange(String half) {
         if (this.wandItem.isEmpty()) return;
         this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
                 getCurrentComponent().withBlockStateProp(HALF_KEY, half));

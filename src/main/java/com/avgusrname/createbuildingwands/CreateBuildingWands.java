@@ -96,22 +96,32 @@ public class CreateBuildingWands {
                         if (!(player.containerMenu instanceof MultiStateConfigMenu menu)) return;
 
                         switch (payload.key()) {
-                            case "toggle" -> menu.handleServerToggle(Integer.parseInt(payload.value()));
-                            case "axis" -> {
+                            case "toggle" -> {
+                                if (menu instanceof ByteConfigMenu byteMenu) {
+                                    menu.handleServerToggle(Integer.parseInt(payload.value()));
+                                }
                                 if (menu instanceof SlabConfigMenu slabMenu) {
-                                    slabMenu.handleAxisChange(payload.value());
+                                    slabMenu.handleServerToggle(Integer.parseInt(payload.value()));
                                 }
                                 if (menu instanceof HalfLayerConfigMenu halfMenu) {
-                                    halfMenu.handleAxisChange(payload.value());
+                                    halfMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                                }
+                            }
+                            case "axis" -> {
+                                if (menu instanceof SlabConfigMenu slabMenu) {
+                                    slabMenu.handleServerAxisChange(payload.value());
+                                }
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) {
+                                    halfMenu.handleServerAxisChange(payload.value());
                                 }
                             }
                             case "half" -> {
-                                if (menu instanceof HalfLayerConfigMenu halfMenu) halfMenu.handleHalfChange(payload.value());
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) halfMenu.handleServerHalfChange(payload.value());
                             }
                             case "layer_change" -> {
                                 if (menu instanceof HalfLayerConfigMenu halfMenu) {
                                     String[] parts = payload.value().split(":");
-                                    halfMenu.handleLayerChange(parts[0], Integer.parseInt(parts[1]));
+                                    halfMenu.handleServerLayerChange(parts[0], Integer.parseInt(parts[1]));
                                 }
                             }
                         }
