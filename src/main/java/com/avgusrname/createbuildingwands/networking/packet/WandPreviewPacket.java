@@ -1,11 +1,7 @@
 package com.avgusrname.createbuildingwands.networking.packet;
 
-import javax.annotation.Nullable;
-
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
-import com.avgusrname.createbuildingwands.item.custom.WandMode;
-import com.avgusrname.createbuildingwands.networking.ModPackets;
+import com.avgusrname.createbuildingwands.item.WandClientPreview;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
@@ -15,9 +11,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -54,6 +48,7 @@ public record WandPreviewPacket(List<BlockPos> positions, Optional<ItemStack> ta
 
                 if (payload.positions().isEmpty() || payload.targetStack().isEmpty()) {
                     CreateBuildingWands.LOGGER.debug("Received WandPreviewPacket to clear preview");
+                    WandClientPreview.updateActiveState(null, null);
                     WandClientPreview.clearPreviewPositions();
                 } else {
                     CreateBuildingWands.LOGGER.debug("Received WandPreviewPacket to set preview with {} positions", payload.positions().size());

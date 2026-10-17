@@ -1,4 +1,4 @@
-package com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen;
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -13,6 +13,10 @@ import net.minecraft.util.Mth;
 import java.util.List;
 import java.util.function.Consumer;
 
+
+/**
+ * i'm pretty sure i referred to the official create mod code to make this but i dont remember
+ */
 public class WandModeScrollWidget extends AbstractWidget {
     private static final ResourceLocation WIDGETS_LOCATION = ResourceLocation.fromNamespaceAndPath(CreateBuildingWands.MODID, "textures/gui/widgets.png");
 

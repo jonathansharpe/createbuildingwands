@@ -1,16 +1,15 @@
 package com.avgusrname.createbuildingwands;
 
+
+import com.avgusrname.createbuildingwands.item.ModItems;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.*;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.*;
+import com.avgusrname.createbuildingwands.networking.packet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
-import com.avgusrname.createbuildingwands.item.custom.WandClientPreview;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ByteConfigScreen;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.ModMenuTypes;
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.screen.WandConfigScreen;
-import com.avgusrname.createbuildingwands.networking.packet.OpenByteConfigPacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandModePacket;
-import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
+import com.avgusrname.createbuildingwands.item.WandClientPreview;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -18,16 +17,12 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.handlers.ClientPayloadHandler;
-import net.neoforged.neoforge.network.handlers.ServerPayloadHandler;
-import net.neoforged.neoforge.network.handling.ClientPayloadContext;
-import net.neoforged.neoforge.network.handling.DirectionalPayloadHandler;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.world.entity.player.Player;
+
+import java.net.Inet4Address;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(value = CreateBuildingWands.MODID, dist = Dist.CLIENT)
@@ -39,9 +34,10 @@ public class CreateBuildingWands {
     public CreateBuildingWands(IEventBus modEventBus) {
         ModCreativeModeTabs.register(modEventBus);
 
-        AllItems.ITEMS.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
         ModDataComponents.register(modEventBus);
         ModMenuTypes.register(modEventBus);
+        LOGGER.info("Hello from Create Building Wands!");
     }
     
     // supposed client side event handler
@@ -58,14 +54,26 @@ public class CreateBuildingWands {
 
         @SubscribeEvent
         public static void registerMenuScreens(RegisterMenuScreensEvent event) {
-            LOGGER.info("Registering Screens...");
+            LOGGER.info("Registering WandConfigScreen...");
             event.register(
-                ModMenuTypes.WAND_CONFIG_MENU.get(), 
-                WandConfigScreen::new
+                    ModMenuTypes.WAND_CONFIG_MENU.get(),
+                    WandConfigScreen::new
             );
             event.register(
-                ModMenuTypes.BYTE_CONFIG.get(),
-                ByteConfigScreen::new
+                    ModMenuTypes.BYTE_CONFIG_MENU.get(),
+                    ByteConfigScreen::new
+            );
+            event.register(
+                    ModMenuTypes.SLAB_CONFIG_MENU.get(),
+                    SlabConfigScreen::new
+            );
+            event.register(
+                    ModMenuTypes.HALF_LAYER_CONFIG_MENU.get(),
+                    HalfLayerConfigScreen::new
+            );
+            event.register(
+                    ModMenuTypes.STACKED_HALF_LAYER_CONFIG_MENU.get(),
+                    StackedHalfLayerConfigScreen::new
             );
         }
 
@@ -73,25 +81,75 @@ public class CreateBuildingWands {
         public static void registerPayloads(final RegisterPayloadHandlersEvent event) {
             final PayloadRegistrar registrar = event.registrar("1");
             registrar.playBidirectional(
-                WandModePacket.TYPE,
-                WandModePacket.STREAM_CODEC,
+                WandPacket.TYPE,
+                WandPacket.STREAM_CODEC,
                 (payload, context) -> {
-                    context.enqueueWork(() -> WandModePacket.handleOnServer(payload, context));
+                    context.enqueueWork(() -> WandPacket.handleOnServer(payload, context));
                 }
             );
 
             registrar.playBidirectional(
                 WandPreviewPacket.TYPE,
                 WandPreviewPacket.STREAM_CODEC,
-                (payload, context) -> {
-                    context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context));
-                }
+                (payload, context) -> context.enqueueWork(() -> WandPreviewPacket.handleOnClient(payload, context))
             );
 
-            registrar.playBidirectional(
-                OpenByteConfigPacket.TYPE,
-                OpenByteConfigPacket.STREAM_CODEC,
-                (payload, context) -> context.enqueueWork(() -> OpenByteConfigPacket.handleOnServer(payload, context))
+            registrar.playToServer(
+                    MultiStateTogglePacket.TYPE,
+                    MultiStateTogglePacket.STREAM_CODEC,
+                    (payload, context) -> context.enqueueWork(() -> {
+                        Player player = context.player();
+                        if (!(player.containerMenu instanceof MultiStateConfigMenu menu)) return;
+
+                        switch (payload.key()) {
+                            case "toggle" -> {
+                                if (menu instanceof ByteConfigMenu byteMenu) {
+                                    menu.handleServerToggle(Integer.parseInt(payload.value()));
+                                }
+                                if (menu instanceof SlabConfigMenu slabMenu) {
+                                    slabMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                                }
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) {
+                                    halfMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                                }
+                                if (menu instanceof StackedHalfLayerConfigMenu stackedMenu) {
+                                    stackedMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                                }
+                            }
+                            case "axis" -> {
+                                if (menu instanceof SlabConfigMenu slabMenu) {
+                                    slabMenu.handleServerAxisChange(payload.value());
+                                }
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) {
+                                    halfMenu.handleServerAxisChange(payload.value());
+                                }
+                            }
+                            case "half" -> {
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) halfMenu.handleServerHalfChange(payload.value());
+                            }
+                            case "layer_change" -> {
+                                if (menu instanceof HalfLayerConfigMenu halfMenu) {
+                                    String[] parts = payload.value().split(":");
+                                    halfMenu.handleServerLayerChange(parts[0], Integer.parseInt(parts[1]));
+                                }
+                                else if (menu instanceof StackedHalfLayerConfigMenu stackedHalfMenu) {
+                                    String[] parts = payload.value().split(":");
+                                    stackedHalfMenu.handleServerLayerChange(parts[0], Integer.parseInt(parts[1]));
+                                }
+                            }
+                            case "facing" -> {
+                                if (menu instanceof StackedHalfLayerConfigMenu stackedHalfMenu) {
+                                    stackedHalfMenu.handleServerFacingChange(payload.value());
+                                }
+                            }
+                        }
+                    })
+            );
+
+            registrar.playToClient(
+                    ForceRedrawPacket.TYPE,
+                    ForceRedrawPacket.CODEC,
+                    ForceRedrawPacketHandler::handle
             );
 
             LOGGER.info("Networking Payloads Registered directly in main mod class.");

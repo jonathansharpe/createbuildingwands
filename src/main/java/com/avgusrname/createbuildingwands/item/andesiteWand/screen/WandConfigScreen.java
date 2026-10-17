@@ -1,0 +1,163 @@
+package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
+
+import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.item.WandMode;
+import com.avgusrname.createbuildingwands.networking.packet.WandPacket;
+import com.avgusrname.createbuildingwands.networking.packet.WandPacket.WandCommand;
+import com.avgusrname.createbuildingwands.util.WandUtils;
+import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
+import com.copycatsplus.copycats.content.copycat.half_layer.CopycatHalfLayerBlock;
+import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
+import com.copycatsplus.copycats.content.copycat.stacked_half_layer.CopycatStackedHalfLayerBlock;
+import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
+import com.mojang.blaze3d.systems.RenderSystem;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.level.block.Block;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
+    private static final ResourceLocation GUI_TEXTURE = 
+        ResourceLocation.fromNamespaceAndPath(CreateBuildingWands.MODID, "textures/gui/wandconfig/wand_gui.png");
+
+    private static final int MODE_WIDGET_WIDTH = 80;
+    private Button configureButton = null;
+    int xOffset = this.leftPos + 100;
+    int yOffset = this.topPos + 100;
+
+    private static final List<Component> WAND_MODE_NAMES = Arrays.stream(WandMode.values())
+        .map(WandMode::getDisplayName)
+        .collect(Collectors.toList());
+    
+    // constructor for the wand config screen
+    // sets the image width and height, may need to change to not hardcoded
+    public WandConfigScreen(WandConfigMenu menu, Inventory playerInventory, Component title) {
+        super(menu, playerInventory, title);
+
+        this.imageWidth = 176;
+        this.imageHeight = 153;
+        this.titleLabelY = 5;
+        this.inventoryLabelY = WandConfigMenu.INVENTORY_START_Y - 10;
+    }
+
+    // initializes the screen and adds the mode scroll widget
+    @Override
+    protected void init() {
+        super.init();
+
+        int modeWidgetX = this.leftPos + 8;
+        int modeWidgetY = this.topPos + 35;
+
+        int initialModeIndex = this.menu.getInitialModeIndex();
+
+        WandModeScrollWidget modeWidget = new WandModeScrollWidget(
+                modeWidgetX,
+                modeWidgetY,
+                WAND_MODE_NAMES,
+                initialModeIndex,
+                this::onModeScroll);
+        this.addRenderableWidget(modeWidget);
+
+        updateConfigureButton();
+    }
+
+    private String getConfigButtonLabel(Block block) {
+        if (block instanceof CopycatByteBlock) return "Configure Byte";
+        if (block instanceof CopycatSlabBlock) return "Configure Slab";
+        if (block instanceof CopycatHalfLayerBlock) return "Configure Half Layer";
+        if (block instanceof CopycatStackedHalfLayerBlock) return "Configure Stacked Half Layer";
+        return "Configure";
+    }
+
+    @Override
+    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        updateConfigureButton();
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    private void updateConfigureButton() {
+        Block copycatBlock = WandUtils.getCopycatBlock(this.menu.getWandItem());
+        boolean shouldShow = copycatBlock instanceof IMultiStateCopycatBlock;
+
+        if (shouldShow && configureButton == null) {
+            CreateBuildingWands.LOGGER.info("[WandDebug] Configure button clicked, sending packet");
+            configureButton = Button.builder(Component.literal(getConfigButtonLabel(copycatBlock)), button -> {
+                PacketDistributor.sendToServer(new WandPacket(
+                        WandCommand.OPEN_MULTISTATE_CONFIG_MENU,
+                        0,
+                        Optional.empty(),
+                        this.menu.getWandHand()
+                ));
+            }).bounds(xOffset, yOffset, 100, 20).build();
+            this.addRenderableWidget(configureButton);
+        } else if (!shouldShow && configureButton != null) {
+            this.removeWidget(configureButton);
+            configureButton = null;
+        }
+    }
+
+    // renders all of the labels for the menu
+    @Override
+    protected void renderLabels(GuiGraphics guiGraphics, int pMouseX, int pMouseY) {
+        super.renderLabels(guiGraphics, pMouseX, pMouseY);
+
+        int labelX = 8 + (MODE_WIDGET_WIDTH / 2);
+        int labelY = 20;
+
+        guiGraphics.drawCenteredString(
+            this.font,
+            Component.literal("MODE SELECTOR"),
+            labelX,
+            labelY,
+            0xFFFFFF
+        );
+    }
+
+    /**
+     * handles setting the new mode on the server when the scroll widget is interacted with
+     * @param newIndex the index for the new option to be updated to
+     */
+    private void onModeScroll(int newIndex) {
+        WandMode selectedMode = WandMode.values()[newIndex];
+        InteractionHand hand = this.menu.getWandHand();
+
+        Minecraft.getInstance().player.displayClientMessage(
+            Component.literal("Wand Mode Set to: " + selectedMode.getDisplayName().getString()),
+            true
+        );
+        
+        PacketDistributor.sendToServer(new WandPacket(WandPacket.WandCommand.SET_MODE, 0, Optional.of(selectedMode), hand));
+    }
+    
+    @Override
+    protected void renderBg(GuiGraphics guiGraphics, float pPartialTick, int pMouseX, int pMouseY) {
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+
+        guiGraphics.blit(GUI_TEXTURE, this.leftPos, this.topPos, 0, 0, imageWidth, imageHeight);
+
+        guiGraphics.blit(GUI_TEXTURE, this.leftPos + 7, this.topPos + WandConfigMenu.INVENTORY_START_Y, 7, WandConfigMenu.INVENTORY_START_Y, 162, 94);
+
+        guiGraphics.blit(GUI_TEXTURE,
+            this.leftPos + WandConfigMenu.REGULAR_WAND_SLOT_X - 1,
+            this.topPos + WandConfigMenu.REGULAR_WAND_SLOT_Y - 1,
+            0,
+            this.imageHeight,
+            18,
+            18
+        );
+    }
+
+}

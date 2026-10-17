@@ -1,20 +1,24 @@
-package com.avgusrname.createbuildingwands.item.custom;
+package com.avgusrname.createbuildingwands.item;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import com.avgusrname.createbuildingwands.item.custom.andesiteWand.AndesiteWandItem;
-import com.avgusrname.createbuildingwands.util.WandGeometryUtil;
+import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.andesiteWand.AndesiteWandItem;
+import com.avgusrname.createbuildingwands.util.BlockPlaceHelper;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -22,16 +26,12 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+
+import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.List;
 
 @EventBusSubscriber(value = Dist.CLIENT)
 public class WandClientPreview {
@@ -69,45 +69,47 @@ public class WandClientPreview {
 
     @SubscribeEvent
     public static void onClientTick(PlayerTickEvent.Post event) {
-        // System.out.println("does this thing work? (onClientTick)");
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
+        Player player = event.getEntity();
 
-        if (level == null || event.getEntity() == null || activeStartPos == null || activeMode == null) {
+        ItemStack wandStack = player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof AndesiteWandItem
+                ? player.getItemInHand(InteractionHand.MAIN_HAND)
+                : player.getItemInHand(InteractionHand.OFF_HAND).getItem() instanceof AndesiteWandItem
+                ? player.getItemInHand(InteractionHand.OFF_HAND)
+                : ItemStack.EMPTY;
+
+        if (level == null || activeStartPos == null || activeMode == null || wandStack.isEmpty()) {
+            clearPreviewPositions();
             return;
         }
 
-        HitResult hit = event.getEntity().pick(50.0D, 0.0F, false);
-        
-        if (hit.getType() == HitResult.Type.BLOCK) {
-            BlockHitResult blockHit = (BlockHitResult) hit;
-            BlockPos clickedPos = blockHit.getBlockPos();
-            Direction face = blockHit.getDirection();
-
-            BlockPos currentEndPos = clickedPos.relative(face);
-
-            List<BlockPos> calculatedPositions;
-
-            switch (activeMode) {
-                case PLANE:
-                    calculatedPositions = WandGeometryUtil.planeBlockPositions(activeStartPos, currentEndPos, face);
-                    break;
-                case CUBE:
-                    calculatedPositions = WandGeometryUtil.cubeBlockPositions(activeStartPos, currentEndPos);
-                    break;
-                case LINE:
-                    calculatedPositions = WandGeometryUtil.lineBlockPositions(activeStartPos, currentEndPos);
-                    break;
-                default:
-                    calculatedPositions = Collections.emptyList();
-                    break;
-            }
-
-            setPreviewPositions(calculatedPositions);
+        if (previewBlock == null || previewBlock.isEmpty()) {
+            Block copycat = wandStack.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+            Block regular = wandStack.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
+            ItemStack previewItem = copycat != null && !copycat.defaultBlockState().isAir()
+                    ? new ItemStack(copycat.asItem())
+                    : regular != null ? new ItemStack(regular.asItem()) : ItemStack.EMPTY;
+            setPreviewBlock(previewItem);
         }
-        else {
+
+        HitResult hit = player.pick(50.0D, 0.0F, false);
+
+        if (hit.getType() != HitResult.Type.BLOCK) {
             clearPreviewPositions();
+            return;
         }
+        BlockHitResult blockHit = (BlockHitResult) hit;
+        BlockPos currentEndPos = blockHit.getBlockPos().relative(blockHit.getDirection());
+
+        List<BlockPos> calculatedPositions = switch (activeMode) {
+            case PLANE -> BlockPlaceHelper.planeBlockPositions(activeStartPos, currentEndPos, blockHit.getDirection());
+            case CUBE -> BlockPlaceHelper.cubeBlockPositions(activeStartPos, currentEndPos);
+            case LINE -> BlockPlaceHelper.lineBlockPositions(activeStartPos, currentEndPos);
+            default -> Collections.emptyList();
+        };
+
+        setPreviewPositions(calculatedPositions);
     }
 
     @SubscribeEvent
@@ -138,9 +140,7 @@ public class WandClientPreview {
         BlockState stateToRender = null;
         if (previewBlock != null && !previewBlock.isEmpty()) {
             Block block = Block.byItem(previewBlock.getItem());
-            if (block != null) {
-                stateToRender = block.defaultBlockState();
-            }
+            stateToRender = block.defaultBlockState();
         }
 
         BlockRenderDispatcher dispatcher = mc.getBlockRenderer();
