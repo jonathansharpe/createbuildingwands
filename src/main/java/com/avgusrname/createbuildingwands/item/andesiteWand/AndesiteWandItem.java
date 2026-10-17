@@ -226,28 +226,23 @@ public class AndesiteWandItem extends Item {
         var currentBlockStateProps = component.blockStateProps();
 
         long activeParts = multiState.storageProperties().stream()
-                .filter(key -> "true".equals(component.blockStateProps().get(key)))
-                .count();
-
-        // TODO fix the following so the active parts are correctly counted
-        long enabledPosLayers = multiState.storageProperties().stream()
-                .filter(key -> "positive_layers".equals(component.blockStateProps().get(key)))
-                .count();
-
-        long enabledNegLayers = multiState.storageProperties().stream()
-                .filter(key -> "negative_layers".equals(component.blockStateProps().get(key)))
-                .count();
-
-        // find all layers enabled
-        // get the storage properties
-        //long totalLayers = multiState.storageProperties().stream(key -> "negative_layers".equals(component.blockStateProps().get(key)));
+                .mapToLong(key -> {
+                    String value = component.blockStateProps().get(key);
+                    if (value == null) return 0;
+                    try {
+                        return Integer.parseInt(value);
+                    } catch (NumberFormatException e) {
+                        return "true".equals(value) ? 1 : 0;
+                    }
+                })
+                .sum();
 
         required.add(new ItemStack(copycatBlock.asItem(), (int) (count * activeParts)));
 
         MaterialItemStorage storage = component.toStorage(copycatBlock, registries);
         Set<Item> seen = new HashSet<>();
         for (String key : multiState.storageProperties()) {
-            if (!"true".equals(component.blockStateProps().get(key))) continue;
+            if (!isValueActive(component.blockStateProps().get(key))) continue;
             MaterialItemStorage.MaterialItem item = storage.getMaterialItem(key);
             if (item == null || item.consumedItem().isEmpty()) continue;
             if (seen.add(item.consumedItem().getItem())) {
@@ -258,6 +253,15 @@ public class AndesiteWandItem extends Item {
         return required;
     }
 
+    private boolean isValueActive(String value) {
+        if (value == null) return false;
+        try {
+            return Integer.parseInt(value) > 0;
+        } catch (NumberFormatException e) {
+            return "true".equals(value);
+        }
+    }
+
     private boolean placeBlock(ServerPlayer player, BlockPos pos, WandPlacementContext ctx) {
 
         Level level = player.level();
@@ -265,6 +269,7 @@ public class AndesiteWandItem extends Item {
 
         if (!level.getBlockState(pos).canBeReplaced()) return false;
 
+        // TODO the below statement is getting the wrong place context, so it is not defaulting correctly
         BlockPlaceContext localContext = BlockPlaceContext.at(ctx.blockPlaceContext(), pos, clickedFace);
         BlockState stateToPlace = getOrientedBlockState(ctx.blockToPlace(), localContext);
 
@@ -291,8 +296,15 @@ public class AndesiteWandItem extends Item {
             }
 
             boolean anyActive =
-                    (copycatBlock.storageProperties().stream().anyMatch(key -> "true".equals(materialComponent.blockStateProps().get(key)))) ||
-                            (copycatBlock.storageProperties().stream().anyMatch(key -> 0 < Integer.parseInt(materialComponent.blockStateProps().getOrDefault(key, String.valueOf(HalfLayerConfigMenu.DEFAULT_LAYERS)))));
+                    copycatBlock.storageProperties().stream().anyMatch(key -> {
+                        String value = materialComponent.blockStateProps().get(key);
+                        if (value == null) return false;
+                        try {
+                            return Integer.parseInt(value) > 0;
+                        } catch (NumberFormatException e) {
+                            return "true".equals(value);
+                        }
+                    });
 
             if (!anyActive) {
                 player.displayClientMessage(
@@ -532,45 +544,6 @@ public class AndesiteWandItem extends Item {
         if (level instanceof ServerLevel serverLevel) {
             serverLevel.getChunkSource().blockChanged(pos);
         }
-    }
-
-    /**
-     * checks to see if the player can consume multiple items
-     * TODO this can almost certainly be integrated into the consumeMultipleItems method, and it just returns a false if it doesn't work
-     * @param inventory player inventory
-     * @param block the block to remove from the inventory
-     * @param count the number of blocks to remove
-     * @return if the items can be consumed or not
-     */
-    private boolean consumeMultipleItems(Inventory inventory, Block block, int count) {
-        ItemStack requiredItem = new ItemStack(block.asItem());
-        if (requiredItem.isEmpty()) return false;
-
-        // list so if accessing multiple slots is necessary it can be done
-        List<Integer> matchingSlots = new ArrayList<>();
-        int itemsFound = 0;
-
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            ItemStack slot = inventory.getItem(i);
-            if (!slot.isEmpty() && ItemStack.isSameItem(slot, requiredItem)) {
-                matchingSlots.add(i);
-                itemsFound += slot.getCount();
-                if (itemsFound >= count) break;
-            }
-        }
-
-        if (itemsFound < count) return false;
-
-        int remaining = count;
-        for (int slot : matchingSlots) {
-            ItemStack stack = inventory.getItem(slot);
-            int toRemove = Math.min(remaining, stack.getCount());
-            stack.shrink(toRemove);
-            remaining -= toRemove;
-            if (remaining <= 0) break;
-        }
-
-        return true;
     }
 
     /**

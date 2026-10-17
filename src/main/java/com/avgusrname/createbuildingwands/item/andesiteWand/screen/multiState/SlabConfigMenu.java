@@ -8,6 +8,7 @@ import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStora
 import com.simibubi.create.AllBlocks;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
@@ -35,12 +36,18 @@ public class SlabConfigMenu extends MultiStateConfigMenu {
         this(pContainerId, pPlayerInventory, WandUtils.deserializeHand(pExtraData));
     }
 
+    public static WandMaterialComponent createEmptyDefault() {
+        Map<String, String> defaults = new HashMap<>();
+        defaults.put(AXIS_KEY, DEFAULT_AXIS);
+        return new WandMaterialComponent(new CompoundTag(), defaults);
+    }
+
     @Override
     public void handleServerToggle(int slotId) {
         if (this.wandItem.isEmpty()) return;
 
         String partKey = ORDERED_KEYS.get(slotId);
-        WandMaterialComponent current = getCurrentComponent();
+        WandMaterialComponent current = getCurrentComponent(this.wandItem);
 
         boolean currentlyActive = current.isActive(partKey);
         boolean nowActive = !currentlyActive;
@@ -80,7 +87,7 @@ public class SlabConfigMenu extends MultiStateConfigMenu {
 
     @Override
     protected boolean isPartActive(int slot) {
-        return getCurrentComponent().isActive(ORDERED_KEYS.get(slot));
+        return getCurrentComponent(this.wandItem).isActive(ORDERED_KEYS.get(slot));
     }
 
     @Override
@@ -108,7 +115,7 @@ public class SlabConfigMenu extends MultiStateConfigMenu {
     public void handleServerAxisChange(String axis) {
         if (this.wandItem.isEmpty()) return;
 
-        WandMaterialComponent current = getCurrentComponent();
+        WandMaterialComponent current = getCurrentComponent(this.wandItem);
         this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),current.withBlockStateProp(AXIS_KEY, axis));
         this.broadcastChanges();
     }

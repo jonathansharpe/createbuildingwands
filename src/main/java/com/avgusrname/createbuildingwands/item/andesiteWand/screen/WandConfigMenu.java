@@ -1,11 +1,16 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.HalfLayerConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.SlabConfigMenu;
+import com.copycatsplus.copycats.content.copycat.half_layer.CopycatHalfLayerBlock;
 import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
+import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponentType;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.npc.VillagerTrades;
@@ -24,7 +29,11 @@ import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.util.WandUtils;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.neoforged.neoforge.network.registration.ModdedConfigurationPayloadRegistration;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class WandConfigMenu extends AbstractContainerMenu{
 
@@ -104,12 +113,19 @@ public class WandConfigMenu extends AbstractContainerMenu{
         if (newBlock != currentBlock) {
             if (newBlock == null) {
                 wandItem.remove(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+                wandItem.set(ModDataComponents.WAND_MATERIALS.get(), WandMaterialComponent.createEmptyDefault());
             } else {
                 wandItem.set(ModDataComponents.WAND_BLOCK_COPYCAT.get(), newBlock);
+                wandItem.set(ModDataComponents.WAND_MATERIALS.get(), getDefaultComponentForBlock(newBlock));
             }
-            wandItem.set(ModDataComponents.WAND_MATERIALS.get(), WandMaterialComponent.createEmptyDefault());
         }
         broadcastChanges();
+    }
+
+    private WandMaterialComponent getDefaultComponentForBlock(Block block) {
+        if (block instanceof CopycatHalfLayerBlock) return HalfLayerConfigMenu.createEmptyDefault();
+        if (block instanceof CopycatSlabBlock) return SlabConfigMenu.createEmptyDefault();
+        return WandMaterialComponent.createEmptyDefault();
     }
 
     private void handleWandSlotClick(int slotId, int button, ClickType clickType, Player player) {

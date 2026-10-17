@@ -1,6 +1,7 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
 import com.simibubi.create.AllBlocks;
@@ -65,7 +66,7 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
         }
     }
 
-    protected WandMaterialComponent getCurrentComponent() {
+    public WandMaterialComponent getCurrentComponent(ItemStack wandItem) {
         return wandItem.getOrDefault(
                 ModDataComponents.WAND_MATERIALS.get(),
                 WandMaterialComponent.createEmptyDefault()
@@ -81,7 +82,7 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
     }
 
     protected void loadSlotsFromWand() {
-        MaterialItemStorage storage = getCurrentComponent().toStorage(wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT), player.level().registryAccess());
+        MaterialItemStorage storage = getCurrentComponent(this.wandItem).toStorage(wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT), player.level().registryAccess());
 
         for (int i = 0; i < getOrderedKeys().size(); i++) {
             MaterialItemStorage.MaterialItem item = storage.getMaterialItem(getOrderedKeys().get(i));
@@ -93,7 +94,7 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
     protected void saveSlotMaterialToWand(String propertyKey, ItemStack newConsumedItem) {
         if (this.wandItem.isEmpty()) return;
 
-        WandMaterialComponent current = getCurrentComponent();
+        WandMaterialComponent current = getCurrentComponent(this.wandItem);
         HolderLookup.Provider registries = player.level().registryAccess();
         MaterialItemStorage storage = current.toStorage(wandItem.get(ModDataComponents.WAND_BLOCK_COPYCAT), registries);
 
@@ -115,7 +116,7 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
         if (this.wandItem.isEmpty()) return;
 
         String propertyKey = getOrderedKeys().get(slotId);
-        WandMaterialComponent current = getCurrentComponent();
+        WandMaterialComponent current = getCurrentComponent(this.wandItem);
 
         boolean nowActive = !current.isActive(propertyKey);
         WandMaterialComponent updated = current.withPartActive(propertyKey, nowActive);

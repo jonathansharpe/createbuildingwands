@@ -6,16 +6,25 @@ import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
+import com.mojang.math.Axis;
 import com.simibubi.create.AllBlocks;
+import io.netty.channel.DefaultAddressedEnvelope;
+import net.minecraft.commands.execution.CustomModifierExecutor;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
+import org.checkerframework.checker.units.qual.C;
 import org.jetbrains.annotations.NotNull;
+import org.xml.sax.helpers.DefaultHandler;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class HalfLayerConfigMenu extends MultiStateConfigMenu {
     public static final List<String> ORDERED_KEYS = List.of("negative_layers", "positive_layers");
@@ -38,12 +47,24 @@ public class HalfLayerConfigMenu extends MultiStateConfigMenu {
         this(pContainerId, pPlayerInventory, WandUtils.deserializeHand(pExtraData));
     }
 
+    public static WandMaterialComponent createEmptyDefault() {
+        CreateBuildingWands.LOGGER.info("the current component is empty, setting to defaults");
+        Map<String, String> defaults = new HashMap<>();
+
+        defaults.put(NEGATIVE_LAYERS_KEY, String.valueOf(DEFAULT_LAYERS));
+        defaults.put(POSITIVE_LAYERS_KEY, String.valueOf(DEFAULT_LAYERS));
+        defaults.put(AXIS_KEY, DEFAULT_AXIS);
+        defaults.put(HALF_KEY, DEFAULT_HALF);
+
+        return new WandMaterialComponent(new CompoundTag(), defaults);
+    }
+
     @Override
     public void handleServerToggle(int slotId) {
         if (this.wandItem.isEmpty()) return;
 
         String partKey = ORDERED_KEYS.get(slotId);
-        WandMaterialComponent current = getCurrentComponent();
+        WandMaterialComponent current = getCurrentComponent(this.wandItem);
 
         boolean currentlyActive = isPartActive(slotId);
         boolean nowActive = !currentlyActive;
@@ -69,7 +90,7 @@ public class HalfLayerConfigMenu extends MultiStateConfigMenu {
     @Override
     protected boolean isPartActive(int slot) {
         String key = ORDERED_KEYS.get(slot);
-        String value = getCurrentComponent().blockStateProps().get(key);
+        String value = getCurrentComponent(this.wandItem).blockStateProps().get(key);
         CreateBuildingWands.LOGGER.info("[WandDebug] isPartActive slot={}, key={}, value={}", slot, key, value);
         if (value == null) return false;
         try {
@@ -112,14 +133,14 @@ public class HalfLayerConfigMenu extends MultiStateConfigMenu {
         if (this.wandItem.isEmpty()) return;
         int newLayers = Math.clamp(value, MIN_LAYERS, MAX_LAYERS);
         this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
-                getCurrentComponent().withBlockStateProp(layerKey, String.valueOf(newLayers)));
+                getCurrentComponent(this.wandItem).withBlockStateProp(layerKey, String.valueOf(newLayers)));
         this.broadcastChanges();
     }
 
     public void handleServerAxisChange(String axis) {
         if (this.wandItem.isEmpty()) return;
 
-        WandMaterialComponent current = getCurrentComponent();
+        WandMaterialComponent current = getCurrentComponent(this.wandItem);
 
         this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
                 current.withBlockStateProp(AXIS_KEY, axis));
@@ -129,26 +150,26 @@ public class HalfLayerConfigMenu extends MultiStateConfigMenu {
     public void handleServerHalfChange(String half) {
         if (this.wandItem.isEmpty()) return;
         this.wandItem.set(ModDataComponents.WAND_MATERIALS.get(),
-                getCurrentComponent().withBlockStateProp(HALF_KEY, half));
+                getCurrentComponent(this.wandItem).withBlockStateProp(HALF_KEY, half));
         this.broadcastChanges();
     }
 
     public int getNegativeLayers() {
-        return Integer.parseInt(getCurrentComponent().blockStateProps()
+        return Integer.parseInt(getCurrentComponent(this.wandItem).blockStateProps()
                 .getOrDefault(NEGATIVE_LAYERS_KEY, String.valueOf(DEFAULT_LAYERS)));
     }
 
     public int getPositiveLayers() {
-        return Integer.parseInt(getCurrentComponent().blockStateProps()
+        return Integer.parseInt(getCurrentComponent(this.wandItem).blockStateProps()
                 .getOrDefault(POSITIVE_LAYERS_KEY, String.valueOf(DEFAULT_LAYERS)));
     }
 
     public String getCurrentAxis() {
-        return getCurrentComponent().blockStateProps().getOrDefault(AXIS_KEY, DEFAULT_AXIS);
+        return getCurrentComponent(this.wandItem).blockStateProps().getOrDefault(AXIS_KEY, DEFAULT_AXIS);
     }
 
     public String getCurrentHalf() {
-        return getCurrentComponent().blockStateProps().getOrDefault(HALF_KEY, DEFAULT_HALF);
+        return getCurrentComponent(this.wandItem).blockStateProps().getOrDefault(HALF_KEY, DEFAULT_HALF);
     }
 
     @Override
