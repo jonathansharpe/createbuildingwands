@@ -8,6 +8,7 @@ import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
 import com.copycatsplus.copycats.content.copycat.half_layer.CopycatHalfLayerBlock;
 import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
+import com.copycatsplus.copycats.content.copycat.stacked_half_layer.CopycatStackedHalfLayerBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.mojang.blaze3d.systems.RenderSystem;
 
@@ -77,6 +78,7 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
         if (block instanceof CopycatByteBlock) return "Configure Byte";
         if (block instanceof CopycatSlabBlock) return "Configure Slab";
         if (block instanceof CopycatHalfLayerBlock) return "Configure Half Layer";
+        if (block instanceof CopycatStackedHalfLayerBlock) return "Configure Stacked Half Layer";
         return "Configure";
     }
 

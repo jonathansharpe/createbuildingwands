@@ -22,6 +22,8 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.minecraft.world.entity.player.Player;
 
+import java.net.Inet4Address;
+
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(value = CreateBuildingWands.MODID, dist = Dist.CLIENT)
 public class CreateBuildingWands {
@@ -69,6 +71,10 @@ public class CreateBuildingWands {
                     ModMenuTypes.HALF_LAYER_CONFIG_MENU.get(),
                     HalfLayerConfigScreen::new
             );
+            event.register(
+                    ModMenuTypes.STACKED_HALF_LAYER_CONFIG_MENU.get(),
+                    StackedHalfLayerConfigScreen::new
+            );
         }
 
         @SubscribeEvent
@@ -106,6 +112,9 @@ public class CreateBuildingWands {
                                 if (menu instanceof HalfLayerConfigMenu halfMenu) {
                                     halfMenu.handleServerToggle(Integer.parseInt(payload.value()));
                                 }
+                                if (menu instanceof StackedHalfLayerConfigMenu stackedMenu) {
+                                    stackedMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                                }
                             }
                             case "axis" -> {
                                 if (menu instanceof SlabConfigMenu slabMenu) {
@@ -122,6 +131,15 @@ public class CreateBuildingWands {
                                 if (menu instanceof HalfLayerConfigMenu halfMenu) {
                                     String[] parts = payload.value().split(":");
                                     halfMenu.handleServerLayerChange(parts[0], Integer.parseInt(parts[1]));
+                                }
+                                else if (menu instanceof StackedHalfLayerConfigMenu stackedHalfMenu) {
+                                    String[] parts = payload.value().split(":");
+                                    stackedHalfMenu.handleServerLayerChange(parts[0], Integer.parseInt(parts[1]));
+                                }
+                            }
+                            case "facing" -> {
+                                if (menu instanceof StackedHalfLayerConfigMenu stackedHalfMenu) {
+                                    stackedHalfMenu.handleServerFacingChange(payload.value());
                                 }
                             }
                         }

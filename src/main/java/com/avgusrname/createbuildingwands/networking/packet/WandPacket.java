@@ -10,9 +10,11 @@ import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.By
 
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.HalfLayerConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.SlabConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.StackedHalfLayerConfigMenu;
 import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
 import com.copycatsplus.copycats.content.copycat.half_layer.CopycatHalfLayerBlock;
 import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
+import com.copycatsplus.copycats.content.copycat.stacked_half_layer.CopycatStackedHalfLayerBlock;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -118,6 +120,20 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
                                 @Override
                                 public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
                                     return new HalfLayerConfigMenu(id, inv, payload.hand());
+                                }
+                            }, buf -> buf.writeEnum(payload.hand()));
+                        }
+                        case CopycatStackedHalfLayerBlock copycatStackedHalfLayerBlock -> {
+                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening StackedHalfLayerConfigMenu");
+                            serverPlayer.openMenu(new MenuProvider() {
+                                @Override
+                                public Component getDisplayName() {
+                                    return Component.literal("Stacked Half Layer Configuration");
+                                }
+
+                                @Override
+                                public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
+                                    return new StackedHalfLayerConfigMenu(id, inv, payload.hand());
                                 }
                             }, buf -> buf.writeEnum(payload.hand()));
                         }

@@ -10,5 +10,5 @@ This mod will aim to improve on other building wand/construction wand/building g
 | Copycat Bytes                | ✔️            | ✔️                 | ✔️      | ✔️             | ✔️                                | ✔️                              |
 | Copycat Slabs                | ✔️            | ✔️                 | ✔️      | ✔️             | ✔️                                | ✔️                              |
 | Copycat Half Layers          | ✔️            | ✔️                 | ✔️      | ✔️             | ✔️                                | ✔️                              |
-| Copycat Stacked Half Layers  |               |                    |         |                |                                   |                                 |
+| Copycat Stacked Half Layers  | ✔️            | ✔️                 | ✔️      | ✔️             | ✔️                                | ✔️                              |
 | Copycat Vertical Half Layers |               |                    |         |                |                                   |                                 |

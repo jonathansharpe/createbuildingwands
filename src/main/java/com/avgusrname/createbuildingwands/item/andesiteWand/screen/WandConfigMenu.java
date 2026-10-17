@@ -3,8 +3,10 @@ package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 import com.avgusrname.createbuildingwands.CreateBuildingWands;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.HalfLayerConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.SlabConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.StackedHalfLayerConfigMenu;
 import com.copycatsplus.copycats.content.copycat.half_layer.CopycatHalfLayerBlock;
 import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
+import com.copycatsplus.copycats.content.copycat.stacked_half_layer.CopycatStackedHalfLayerBlock;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
@@ -125,6 +127,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
     private WandMaterialComponent getDefaultComponentForBlock(Block block) {
         if (block instanceof CopycatHalfLayerBlock) return HalfLayerConfigMenu.createEmptyDefault();
         if (block instanceof CopycatSlabBlock) return SlabConfigMenu.createEmptyDefault();
+        if (block instanceof CopycatStackedHalfLayerBlock) return StackedHalfLayerConfigMenu.createEmptyDefault();
         return WandMaterialComponent.createEmptyDefault();
     }
 

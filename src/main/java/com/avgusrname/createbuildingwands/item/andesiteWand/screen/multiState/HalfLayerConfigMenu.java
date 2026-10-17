@@ -6,10 +6,7 @@ import com.avgusrname.createbuildingwands.item.andesiteWand.screen.ModMenuTypes;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.foundation.copycat.multistate.MaterialItemStorage;
-import com.mojang.math.Axis;
 import com.simibubi.create.AllBlocks;
-import io.netty.channel.DefaultAddressedEnvelope;
-import net.minecraft.commands.execution.CustomModifierExecutor;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -17,14 +14,11 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
-import org.checkerframework.checker.units.qual.C;
 import org.jetbrains.annotations.NotNull;
-import org.xml.sax.helpers.DefaultHandler;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public class HalfLayerConfigMenu extends MultiStateConfigMenu {
     public static final List<String> ORDERED_KEYS = List.of("negative_layers", "positive_layers");
