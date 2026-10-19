@@ -8,7 +8,7 @@ import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.item.andesiteWand.AndesiteWandItem;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.ByteConfigMenu;
 
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.HalfLayerConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.StandardHalfLayerConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.SlabConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.StackedHalfLayerConfigMenu;
 import com.copycatsplus.copycats.content.copycat.bytes.CopycatByteBlock;
@@ -119,7 +119,7 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
 
                                 @Override
                                 public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
-                                    return new HalfLayerConfigMenu(id, inv, payload.hand());
+                                    return new StandardHalfLayerConfigMenu(id, inv, payload.hand());
                                 }
                             }, buf -> buf.writeEnum(payload.hand()));
                         }

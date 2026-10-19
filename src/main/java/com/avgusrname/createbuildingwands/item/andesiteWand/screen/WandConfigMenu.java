@@ -1,28 +1,21 @@
 package com.avgusrname.createbuildingwands.item.andesiteWand.screen;
 
-import com.avgusrname.createbuildingwands.CreateBuildingWands;
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.HalfLayerConfigMenu;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.StandardHalfLayerConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.SlabConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.StackedHalfLayerConfigMenu;
 import com.copycatsplus.copycats.content.copycat.half_layer.CopycatHalfLayerBlock;
 import com.copycatsplus.copycats.content.copycat.slab.CopycatSlabBlock;
 import com.copycatsplus.copycats.content.copycat.stacked_half_layer.CopycatStackedHalfLayerBlock;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlock;
-import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.simibubi.create.content.decoration.copycat.CopycatBlock;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponentType;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.npc.VillagerTrades;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.ItemStackHandler;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.Block;
 
@@ -31,11 +24,7 @@ import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.util.WandUtils;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.neoforged.neoforge.network.registration.ModdedConfigurationPayloadRegistration;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class WandConfigMenu extends AbstractContainerMenu{
 
@@ -125,7 +114,7 @@ public class WandConfigMenu extends AbstractContainerMenu{
     }
 
     private WandMaterialComponent getDefaultComponentForBlock(Block block) {
-        if (block instanceof CopycatHalfLayerBlock) return HalfLayerConfigMenu.createEmptyDefault();
+        if (block instanceof CopycatHalfLayerBlock) return StandardHalfLayerConfigMenu.createEmptyDefault();
         if (block instanceof CopycatSlabBlock) return SlabConfigMenu.createEmptyDefault();
         if (block instanceof CopycatStackedHalfLayerBlock) return StackedHalfLayerConfigMenu.createEmptyDefault();
         return WandMaterialComponent.createEmptyDefault();
