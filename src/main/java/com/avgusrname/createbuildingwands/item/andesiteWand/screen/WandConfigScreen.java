@@ -75,6 +75,7 @@ public class WandConfigScreen extends AbstractContainerScreen<WandConfigMenu> {
     }
 
     private String getConfigButtonLabel(Block block) {
+        // TODO make these names more automated
         if (block instanceof CopycatByteBlock) return "Configure Byte";
         if (block instanceof CopycatSlabBlock) return "Configure Slab";
         if (block instanceof CopycatHalfLayerBlock) return "Configure Half Layer";

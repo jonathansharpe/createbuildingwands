@@ -31,7 +31,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public record WandPacket(WandCommand command, int value, Optional<WandMode> wandMode, InteractionHand hand) implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<WandPacket> TYPE = new CustomPacketPayload.Type<>(
@@ -72,77 +71,79 @@ public record WandPacket(WandCommand command, int value, Optional<WandMode> wand
                     });
                 }
             }
-            case OPEN_MULTISTATE_CONFIG_MENU -> {
-                if (player instanceof ServerPlayer serverPlayer) {
-                    CreateBuildingWands.LOGGER.info("[WandDebug] OPEN_MULTISTATE_CONFIG_MENU received, player menu: {}", player.containerMenu.getClass().getSimpleName());
-                    Block copycatBlock = wand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
-                    CreateBuildingWands.LOGGER.info("[WandDebug] copycat block is: {}", copycatBlock);
-                    switch (copycatBlock) {
-                        case null -> {
-                            return;
-                        }
-                        case CopycatByteBlock copycatByteBlock -> {
-                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening ByteConfigMenu");
-                            serverPlayer.openMenu(new MenuProvider() {
-                                @Override
-                                public Component getDisplayName() {
-                                    return Component.literal("Copycat Byte Configuration");
-                                }
+            case OPEN_MULTISTATE_CONFIG_MENU -> openMultiStateConfigMenu(payload, player, wand);
+        }
+    }
 
-                                @Override
-                                public AbstractContainerMenu createMenu(int id, @NotNull Inventory inv, Player p) {
-                                    return new ByteConfigMenu(id, inv, payload.hand());
-                                }
-                            }, buf -> buf.writeEnum(payload.hand()));
+    private static void openMultiStateConfigMenu(WandPacket payload, Player player, ItemStack wand) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            CreateBuildingWands.LOGGER.info("[WandDebug] OPEN_MULTISTATE_CONFIG_MENU received, player menu: {}", player.containerMenu.getClass().getSimpleName());
+            Block copycatBlock = wand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+            CreateBuildingWands.LOGGER.info("[WandDebug] copycat block is: {}", copycatBlock);
+            switch (copycatBlock) {
+                case null -> {
+                    return;
+                }
+                case CopycatByteBlock copycatByteBlock -> {
+                    CreateBuildingWands.LOGGER.info("[WandDebug] Opening ByteConfigMenu");
+                    serverPlayer.openMenu(new MenuProvider() {
+                        @Override
+                        public @NotNull Component getDisplayName() {
+                            return Component.literal("Copycat Byte Configuration");
                         }
-                        case CopycatSlabBlock copycatSlabBlock -> {
-                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening SlabConfigMenu");
-                            serverPlayer.openMenu(new MenuProvider() {
-                                @Override
-                                public Component getDisplayName() {
-                                    return Component.literal("Copycat Slab Configuration");
-                                }
 
-                                @Override
-                                public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
-                                    return new SlabConfigMenu(id, inv, payload.hand());
-                                }
-                            }, buf -> buf.writeEnum(payload.hand()));
+                        @Override
+                        public AbstractContainerMenu createMenu(int id, @NotNull Inventory inv, Player p) {
+                            return new ByteConfigMenu(id, inv, payload.hand());
                         }
-                        case CopycatHalfLayerBlock copycatHalfLayerBlock -> {
-                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening HalfLayerConfigMenu");
-                            serverPlayer.openMenu(new MenuProvider() {
-                                @Override
-                                public Component getDisplayName() {
-                                    return Component.literal("Half Layer Configuration");
-                                }
+                    }, buf -> buf.writeEnum(payload.hand()));
+                }
+                case CopycatSlabBlock copycatSlabBlock -> {
+                    CreateBuildingWands.LOGGER.info("[WandDebug] Opening SlabConfigMenu");
+                    serverPlayer.openMenu(new MenuProvider() {
+                        @Override
+                        public @NotNull Component getDisplayName() {
+                            return Component.literal("Copycat Slab Configuration");
+                        }
 
-                                @Override
-                                public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
-                                    return new StandardHalfLayerConfigMenu(id, inv, payload.hand());
-                                }
-                            }, buf -> buf.writeEnum(payload.hand()));
+                        @Override
+                        public @NotNull AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
+                            return new SlabConfigMenu(id, inv, payload.hand());
                         }
-                        case CopycatStackedHalfLayerBlock copycatStackedHalfLayerBlock -> {
-                            CreateBuildingWands.LOGGER.info("[WandDebug] Opening StackedHalfLayerConfigMenu");
-                            serverPlayer.openMenu(new MenuProvider() {
-                                @Override
-                                public Component getDisplayName() {
-                                    return Component.literal("Stacked Half Layer Configuration");
-                                }
+                    }, buf -> buf.writeEnum(payload.hand()));
+                }
+                case CopycatHalfLayerBlock copycatHalfLayerBlock -> {
+                    CreateBuildingWands.LOGGER.info("[WandDebug] Opening HalfLayerConfigMenu");
+                    serverPlayer.openMenu(new MenuProvider() {
+                        @Override
+                        public @NotNull Component getDisplayName() {
+                            return Component.literal("Half Layer Configuration");
+                        }
 
-                                @Override
-                                public @Nullable AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
-                                    return new StackedHalfLayerConfigMenu(id, inv, payload.hand());
-                                }
-                            }, buf -> buf.writeEnum(payload.hand()));
+                        @Override
+                        public @NotNull AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
+                            return new StandardHalfLayerConfigMenu(id, inv, payload.hand());
                         }
-                        default -> {
+                    }, buf -> buf.writeEnum(payload.hand()));
+                }
+                case CopycatStackedHalfLayerBlock copycatStackedHalfLayerBlock -> {
+                    CreateBuildingWands.LOGGER.info("[WandDebug] Opening StackedHalfLayerConfigMenu");
+                    serverPlayer.openMenu(new MenuProvider() {
+                        @Override
+                        public @NotNull Component getDisplayName() {
+                            return Component.literal("Stacked Half Layer Configuration");
                         }
-                    }
 
+                        @Override
+                        public @NotNull AbstractContainerMenu createMenu(int id, Inventory inv, Player p) {
+                            return new StackedHalfLayerConfigMenu(id, inv, payload.hand());
+                        }
+                    }, buf -> buf.writeEnum(payload.hand()));
+                }
+                default -> {
                 }
             }
+
         }
     }
 

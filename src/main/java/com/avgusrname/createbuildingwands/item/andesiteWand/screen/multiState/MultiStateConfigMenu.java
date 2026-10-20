@@ -21,6 +21,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
+import static com.avgusrname.createbuildingwands.util.WandUtils.getCurrentComponent;
+
 public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
 
     protected final ItemStack wandItem;
@@ -64,13 +66,6 @@ public abstract class MultiStateConfigMenu extends AbstractContainerMenu {
         for (int col = 0; col < 9; col++) {
             this.addSlot(new Slot(playerInventory, col, 8 + col * 18, getHotbarY()));
         }
-    }
-
-    public WandMaterialComponent getCurrentComponent(ItemStack wandItem) {
-        return wandItem.getOrDefault(
-                ModDataComponents.WAND_MATERIALS.get(),
-                WandMaterialComponent.createEmptyDefault()
-        );
     }
 
     public InteractionHand getWandHand() {

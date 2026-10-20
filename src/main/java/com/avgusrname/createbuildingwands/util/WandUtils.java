@@ -1,6 +1,7 @@
 package com.avgusrname.createbuildingwands.util;
 
 import com.avgusrname.createbuildingwands.component.ModDataComponents;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
@@ -22,5 +23,12 @@ public class WandUtils {
     }
     public static Block getCopycatBlock(ItemStack wandStack) {
         return wandStack.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
+    }
+
+    public static WandMaterialComponent getCurrentComponent(ItemStack wandItem) {
+        return wandItem.getOrDefault(
+                ModDataComponents.WAND_MATERIALS.get(),
+                WandMaterialComponent.createEmptyDefault()
+        );
     }
 }

@@ -7,9 +7,11 @@ import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandPlacementContext;
+import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.MultiStateConfigMenu;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
 import com.avgusrname.createbuildingwands.util.BlockPlaceHelper;
+import com.avgusrname.createbuildingwands.util.WandUtils;
 import com.copycatsplus.copycats.foundation.copycat.ICopycatBlockEntity;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlock;
 import com.copycatsplus.copycats.foundation.copycat.multistate.IMultiStateCopycatBlockEntity;
@@ -215,25 +217,9 @@ public class AndesiteWandItem extends Item {
             return required;
         }
 
-        WandMaterialComponent component = wand.getOrDefault(
-                ModDataComponents.WAND_MATERIALS.get(),
-                WandMaterialComponent.createEmptyDefault()
-        );
+        WandMaterialComponent component = WandUtils.getCurrentComponent(wand);
 
-        var currentStorage = multiState.storageProperties();
-        var currentBlockStateProps = component.blockStateProps();
-
-        long activeParts = multiState.storageProperties().stream()
-                .mapToLong(key -> {
-                    String value = component.blockStateProps().get(key);
-                    if (value == null) return 0;
-                    try {
-                        return Integer.parseInt(value);
-                    } catch (NumberFormatException e) {
-                        return "true".equals(value) ? 1 : 0;
-                    }
-                })
-                .sum();
+        long activeParts = getActiveParts(multiState, component);
 
         required.add(new ItemStack(copycatBlock.asItem(), (int) (count * activeParts)));
 
@@ -249,6 +235,20 @@ public class AndesiteWandItem extends Item {
         }
 
         return required;
+    }
+
+    private static long getActiveParts(IMultiStateCopycatBlock multiState, WandMaterialComponent component) {
+        return multiState.storageProperties().stream()
+                .mapToLong(key -> {
+                    String value = component.blockStateProps().get(key);
+                    if (value == null) return 0;
+                    try {
+                        return Integer.parseInt(value);
+                    } catch (NumberFormatException e) {
+                        return "true".equals(value) ? 1 : 0;
+                    }
+                })
+                .sum();
     }
 
     private boolean isValueActive(String value) {
@@ -267,15 +267,14 @@ public class AndesiteWandItem extends Item {
 
         if (!level.getBlockState(pos).canBeReplaced()) return false;
 
-        // TODO the below statement is getting the wrong place context, so it is not defaulting correctly
         BlockPlaceContext localContext = BlockPlaceContext.at(ctx.blockPlaceContext(), pos, clickedFace);
         BlockState stateToPlace = getOrientedBlockState(ctx.blockToPlace(), localContext);
 
         if (!ctx.isCopycat()) {
             return level.setBlock(pos, stateToPlace, Block.UPDATE_ALL);
         }
-        WandMaterialComponent materialComponent = player.getItemInHand(InteractionHand.MAIN_HAND)
-                .getOrDefault(ModDataComponents.WAND_MATERIALS.get(),WandMaterialComponent.createEmptyDefault());
+
+        WandMaterialComponent materialComponent = WandUtils.getCurrentComponent(player.getItemInHand(InteractionHand.MAIN_HAND));
 
         BlockState finalStateToPlace = stateToPlace;
 
@@ -293,16 +292,7 @@ public class AndesiteWandItem extends Item {
                 finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
             }
 
-            boolean anyActive =
-                    copycatBlock.storageProperties().stream().anyMatch(key -> {
-                        String value = materialComponent.blockStateProps().get(key);
-                        if (value == null) return false;
-                        try {
-                            return Integer.parseInt(value) > 0;
-                        } catch (NumberFormatException e) {
-                            return "true".equals(value);
-                        }
-                    });
+            boolean anyActive = isAnyActive(copycatBlock, materialComponent);
 
             if (!anyActive) {
                 player.displayClientMessage(
@@ -316,15 +306,11 @@ public class AndesiteWandItem extends Item {
             if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
 
             BlockEntity targetBE = level.getBlockEntity(pos);
-            CreateBuildingWands.LOGGER.info("[WandDebug] targetBe after placement: {}", targetBE);
-            CreateBuildingWands.LOGGER.info("[WandDebug] is IMultiStateCopycatBlockEntity: {}", targetBE instanceof IMultiStateCopycatBlockEntity);
             if (!(targetBE instanceof IMultiStateCopycatBlockEntity copycatMock)) return false;
 
             copycatMock.init();
-            CreateBuildingWands.LOGGER.info("[WandDebug] BE storage properties after init: {}", copycatMock.getMaterialItemStorage().getAllProperties());
             MaterialItemStorage wandStorage = materialComponent.toStorage((Block) copycatBlock, player.level().registryAccess());
             MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
-            CreateBuildingWands.LOGGER.info("[WandDebug] wandStorage.getMaterialMap(): {}", wandStorage.getMaterialMap());
 
             Set<Item> seenItems = new HashSet<>();
             for (String key : wandStorage.getAllProperties()) {
@@ -340,7 +326,6 @@ public class AndesiteWandItem extends Item {
 
                 beStorage.storeMaterialItem(key, toStore);
             }
-            CreateBuildingWands.LOGGER.info("[WandDebug] beStorage after copy: {}", copycatMock.getMaterialItemStorage().getMaterialMap());
 
             syncBE(level, pos, targetBE, oldState, finalStateToPlace);
         } else {
@@ -348,10 +333,10 @@ public class AndesiteWandItem extends Item {
             Block regularBlock = player.getItemInHand(InteractionHand.MAIN_HAND)
                     .get(ModDataComponents.WAND_BLOCK_REGULAR.get());
 
-
             BlockState oldState = level.getBlockState(pos);
             if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
 
+            assert regularBlock != null;
             BlockState materialState = regularBlock.defaultBlockState();
             ItemStack consumedItem = new ItemStack(regularBlock.asItem());
             applyCopycatMaterial(level, pos, materialState, consumedItem);
@@ -359,6 +344,18 @@ public class AndesiteWandItem extends Item {
             syncBE(level, pos, level.getBlockEntity(pos), oldState, finalStateToPlace);
         }
         return true;
+    }
+
+    private static boolean isAnyActive(IMultiStateCopycatBlock copycatBlock, WandMaterialComponent materialComponent) {
+        return copycatBlock.storageProperties().stream().anyMatch(key -> {
+            String value = materialComponent.blockStateProps().get(key);
+            if (value == null) return false;
+            try {
+                return Integer.parseInt(value) > 0;
+            } catch (NumberFormatException e) {
+                return "true".equals(value);
+            }
+        });
     }
 
     private void syncBE(Level level, BlockPos pos, BlockEntity be, BlockState oldState, BlockState newState) {

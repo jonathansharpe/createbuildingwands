@@ -99,45 +99,7 @@ public class CreateBuildingWands {
                         Player player = context.player();
                         if (!(player.containerMenu instanceof MultiStateConfigMenu menu)) return;
 
-                        switch (payload.key()) {
-                            case "toggle" -> {
-                                if (menu instanceof ByteConfigMenu byteMenu) {
-                                    menu.handleServerToggle(Integer.parseInt(payload.value()));
-                                }
-                                if (menu instanceof SlabConfigMenu slabMenu) {
-                                    slabMenu.handleServerToggle(Integer.parseInt(payload.value()));
-                                }
-                                if (menu instanceof StandardHalfLayerConfigMenu halfMenu) {
-                                    halfMenu.handleServerToggle(Integer.parseInt(payload.value()));
-                                }
-                                if (menu instanceof StackedHalfLayerConfigMenu stackedMenu) {
-                                    stackedMenu.handleServerToggle(Integer.parseInt(payload.value()));
-                                }
-                            }
-                            case "axis" -> {
-                                if (menu instanceof SlabConfigMenu slabMenu) {
-                                    slabMenu.handleServerAxisChange(payload.value());
-                                }
-                                if (menu instanceof StandardHalfLayerConfigMenu halfMenu) {
-                                    halfMenu.handleServerAxisChange(payload.value());
-                                }
-                            }
-                            case "half" -> {
-                                if (menu instanceof StandardHalfLayerConfigMenu halfMenu) halfMenu.handleServerHalfChange(payload.value());
-                            }
-                            case "layer_change" -> {
-                                if (menu instanceof HalfLayerConfigMenu halfMenu) {
-
-                                    String[] parts = payload.value().split(":");
-                                    halfMenu.handleServerLayerChange(parts[0], Integer.parseInt(parts[1]));
-                                }
-                            }
-                            case "facing" -> {
-                                if (menu instanceof StackedHalfLayerConfigMenu stackedHalfMenu) {
-                                    stackedHalfMenu.handleServerFacingChange(payload.value());
-                                }
-                            }
-                        }
+                        handleMultiStateTogglePacket(payload, menu);
                     })
             );
 
@@ -148,6 +110,48 @@ public class CreateBuildingWands {
             );
 
             LOGGER.info("Networking Payloads Registered directly in main mod class.");
+        }
+
+        private static void handleMultiStateTogglePacket(MultiStateTogglePacket payload, MultiStateConfigMenu menu) {
+            switch (payload.key()) {
+                case "toggle" -> {
+                    if (menu instanceof ByteConfigMenu byteMenu) {
+                        byteMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                    }
+                    if (menu instanceof SlabConfigMenu slabMenu) {
+                        slabMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                    }
+                    if (menu instanceof StandardHalfLayerConfigMenu halfMenu) {
+                        halfMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                    }
+                    if (menu instanceof StackedHalfLayerConfigMenu stackedMenu) {
+                        stackedMenu.handleServerToggle(Integer.parseInt(payload.value()));
+                    }
+                }
+                case "axis" -> {
+                    if (menu instanceof SlabConfigMenu slabMenu) {
+                        slabMenu.handleServerAxisChange(payload.value());
+                    }
+                    if (menu instanceof StandardHalfLayerConfigMenu halfMenu) {
+                        halfMenu.handleServerAxisChange(payload.value());
+                    }
+                }
+                case "half" -> {
+                    if (menu instanceof StandardHalfLayerConfigMenu halfMenu) halfMenu.handleServerHalfChange(payload.value());
+                }
+                case "layer_change" -> {
+                    if (menu instanceof HalfLayerConfigMenu halfMenu) {
+
+                        String[] parts = payload.value().split(":");
+                        halfMenu.handleServerLayerChange(parts[0], Integer.parseInt(parts[1]));
+                    }
+                }
+                case "facing" -> {
+                    if (menu instanceof StackedHalfLayerConfigMenu stackedHalfMenu) {
+                        stackedHalfMenu.handleServerFacingChange(payload.value());
+                    }
+                }
+            }
         }
     }
 
