@@ -21,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.avgusrname.createbuildingwands.util.WandUtils.getCurrentComponent;
+
 public class SlabConfigMenu extends MultiStateConfigMenu {
     public static final List<String> ORDERED_KEYS = List.of("bottom", "top");
     public static final String TYPE_KEY = "type";

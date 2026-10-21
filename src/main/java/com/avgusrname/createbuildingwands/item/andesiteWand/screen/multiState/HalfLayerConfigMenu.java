@@ -14,6 +14,8 @@ import net.minecraft.world.item.ItemStack;
 import java.awt.*;
 import java.util.List;
 
+import static com.avgusrname.createbuildingwands.util.WandUtils.getCurrentComponent;
+
 public abstract class HalfLayerConfigMenu extends MultiStateConfigMenu {
     public static final List<String> ORDERED_KEYS = List.of("negative_layers", "positive_layers");
     public static final String NEGATIVE_LAYERS_KEY = ORDERED_KEYS.getFirst();

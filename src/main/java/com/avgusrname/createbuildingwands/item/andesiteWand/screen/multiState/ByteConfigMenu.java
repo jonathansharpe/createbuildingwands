@@ -67,7 +67,7 @@ public class ByteConfigMenu extends MultiStateConfigMenu {
 
     @Override
     protected boolean isPartActive(int slot) {
-        WandMaterialComponent component = getCurrentComponent(this.wandItem);
+        WandMaterialComponent component = WandUtils.getCurrentComponent(this.wandItem);
         return component.isActive(ORDERED_KEYS.get(slot));
     }
 

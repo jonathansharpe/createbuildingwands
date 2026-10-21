@@ -7,7 +7,6 @@ import com.avgusrname.createbuildingwands.item.WandMode;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandConfigMenu;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandMaterialComponent;
 import com.avgusrname.createbuildingwands.item.andesiteWand.screen.WandPlacementContext;
-import com.avgusrname.createbuildingwands.item.andesiteWand.screen.multiState.MultiStateConfigMenu;
 import com.avgusrname.createbuildingwands.networking.packet.ForceRedrawPacket;
 import com.avgusrname.createbuildingwands.networking.packet.WandPreviewPacket;
 import com.avgusrname.createbuildingwands.util.BlockPlaceHelper;
@@ -71,24 +70,19 @@ public class AndesiteWandItem extends Item {
      * @param hand the hand which is using the wand
      */
     private static void openConfig(Level level, Player player, InteractionHand hand) {
-		// so this again checks to make sure this is happening on the server side and also that the player is an instance of a ServerPlayer. the ServerPlayer class extends the Player class, but has server attributes, like ServerGamePacketListenerImpl which seems to have to do with the server
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
-            // creating a new instance of a MenuProvider, which is an interface type. it inherits other interfaces, which seemingly wouldn't be possible with other classes. this new instance overrides the necessary classes.
             MenuProvider containerProvider = new MenuProvider() {
-                // this just makes the display name which will be displayed when the menu is drawn
                 @Override
                 public @NotNull Component getDisplayName() {
 					return Component.literal("Wand Configuration");
 				}
 
-                // this makes the menu giving the important info. the level is seemingly no longer relevant since at this point we're in a menu, and not interacting with the world, but merely the players inventory and the menu itself.
                 @Override
                 public AbstractContainerMenu createMenu(int id, @NotNull Inventory inv, @NotNull Player p) {
                     return new WandConfigMenu(id, inv, hand);
                 }
             };
 
-            // this then opens the menu we just created
             serverPlayer.openMenu(containerProvider);
         }
     }
@@ -97,14 +91,18 @@ public class AndesiteWandItem extends Item {
     public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level level, Player player, @NotNull InteractionHand hand) {
         ItemStack wand = player.getItemInHand(hand);
 
-        if (!player.isCrouching()) return InteractionResultHolder.pass(wand);
+        if (!player.isCrouching()) {
+            return InteractionResultHolder.pass(wand);
+        }
 
         if (level.isClientSide()) {
             player.swing(hand);
             return InteractionResultHolder.consume(wand);
         }
 
-        if (!(player instanceof ServerPlayer serverPlayer)) return InteractionResultHolder.fail(wand);
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResultHolder.fail(wand);
+        }
 
         if (wand.has(ModDataComponents.WAND_START_POS.get())) {
             wand.remove(ModDataComponents.WAND_START_POS.get());
@@ -126,9 +124,8 @@ public class AndesiteWandItem extends Item {
         BlockPos clickedPos = context.getClickedPos();
         Direction clickedFace = context.getClickedFace();
 
-        if (player == null) return InteractionResult.FAIL;
-
         if (level.isClientSide()) {
+            assert player != null;
             handleClientSide(heldWand, player, clickedPos, clickedFace);
             return InteractionResult.SUCCESS;
         }
@@ -137,11 +134,7 @@ public class AndesiteWandItem extends Item {
 
         if (player.isCrouching()) {
             if (heldWand.has(ModDataComponents.WAND_START_POS.get())) {
-                heldWand.remove(ModDataComponents.WAND_START_POS.get());
-                player.displayClientMessage(
-                        Component.literal("Start position cleared").withStyle(ChatFormatting.WHITE), true);
-                PacketDistributor.sendToPlayer(serverPlayer, new WandPreviewPacket(List.of(), Optional.empty()));
-                return InteractionResult.CONSUME;
+                return removeStartPosition(serverPlayer, heldWand, player);
             }
             openConfig(level, player, context.getHand());
             return InteractionResult.CONSUME;
@@ -152,26 +145,15 @@ public class AndesiteWandItem extends Item {
         boolean isCopycat = copycatBlock != null && !copycatBlock.defaultBlockState().isAir();
         Block blockToPlace = isCopycat ? copycatBlock : regularBlock;
 
-        if (blockToPlace == null || blockToPlace.defaultBlockState().isAir()) return InteractionResult.PASS;
+        if ((blockToPlace == null) || blockToPlace.defaultBlockState().isAir()) return InteractionResult.PASS;
 
         ItemStack materialStack = regularBlock != null ? new ItemStack(regularBlock.asItem()) : ItemStack.EMPTY;
         WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
         BlockPlaceContext placeContext = new BlockPlaceContext(context);
 
         boolean placed = switch (currentMode) {
-            case SINGLE -> {
-                if (!player.isCreative()) {
-                    List<ItemStack> required = getRequiredMaterialStacks(heldWand, blockToPlace, 1, player.level().registryAccess());
-                    required.forEach(stack -> CreateBuildingWands.LOGGER.info("[WandDebug] required item: {} x {}", stack.getItem(), stack.getCount()));
-                    if (!tryConsumeItems(player.getInventory(), required)) {
-                        player.displayClientMessage(
-                                Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
-                        yield false;
-                    }
-                }
-                yield placeBlock(serverPlayer, clickedPos.relative(clickedFace),
-                        new WandPlacementContext(blockToPlace, materialStack, isCopycat, placeContext));
-            }
+            case SINGLE ->
+                    handleSinglePlacement(serverPlayer, player, heldWand, blockToPlace, clickedPos, clickedFace, materialStack, isCopycat, placeContext);
             case LINE, PLANE, CUBE -> placeMultiple(currentMode, serverPlayer, heldWand, placeContext);
             case SPHERE -> false;
         };
@@ -179,6 +161,56 @@ public class AndesiteWandItem extends Item {
         return placed ? InteractionResult.CONSUME : InteractionResult.FAIL;
     }
 
+    /**
+     * handles placing or rejecting 1 block
+     * @param serverPlayer player on the server side
+     * @param player player on the client side
+     * @param heldWand wand with the data being accessed
+     * @param blockToPlace block that will attempted to be placed
+     * @param clickedPos coordinates clicked
+     * @param clickedFace face clicked
+     * @param materialStack stack representing the block that will attempted to be placed
+     * @param isCopycat if a copycat is being placed or not
+     * @param placeContext more context needed for the block placement
+     * @return true if the placement succeeded, false if not
+     */
+    private boolean handleSinglePlacement(ServerPlayer serverPlayer, Player player, ItemStack heldWand, Block blockToPlace, BlockPos clickedPos, Direction clickedFace, ItemStack materialStack, boolean isCopycat, BlockPlaceContext placeContext) {
+        if (!player.isCreative()) {
+            List<ItemStack> required = getRequiredItemsForPlacement(heldWand, blockToPlace, 1, player.level().registryAccess());
+            required.forEach(stack -> CreateBuildingWands.LOGGER.info("[WandDebug] required item: {} x {}", stack.getItem(), stack.getCount()));
+            if (!tryConsumeItems(player.getInventory(), required)) {
+                player.displayClientMessage(
+                        Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
+                return false;
+            }
+        }
+        return placeBlock(serverPlayer, clickedPos.relative(clickedFace),
+                new WandPlacementContext(blockToPlace, materialStack, isCopycat, placeContext));
+    }
+
+    /**
+     * removes the start position from the wand
+     * @param serverPlayer the player holding the wand on the server side
+     * @param heldWand the wand item the player is holding
+     * @param player the player holding the wand on the client side
+     * @return the InteractionResult, in this case CONSUME since the behavior is always consistent
+     */
+
+    private static @NotNull InteractionResult removeStartPosition(ServerPlayer serverPlayer, ItemStack heldWand, Player player) {
+        heldWand.remove(ModDataComponents.WAND_START_POS.get());
+        player.displayClientMessage(
+                Component.literal("Start position cleared").withStyle(ChatFormatting.WHITE), true);
+        PacketDistributor.sendToPlayer(serverPlayer, new WandPreviewPacket(List.of(), Optional.empty()));
+        return InteractionResult.CONSUME;
+    }
+
+    /**
+     * does anything client side stuff, notably displaying the block preview
+     * @param heldWand the wand whose data is being accessed
+     * @param player the player on the client side
+     * @param clickedPos the coordinates clicked
+     * @param clickedFace the face clicked
+     */
     private void handleClientSide(ItemStack heldWand, Player player, BlockPos clickedPos, Direction clickedFace) {
         if (player.isCrouching()) return;
 
@@ -201,13 +233,29 @@ public class AndesiteWandItem extends Item {
         }
     }
 
+    /**
+     * applies properties using a map function thingy
+     * @param state existing state of the state
+     * @param prop properties to apply
+     * @param value values of the properties to apply
+     * @return the properties after modification
+     * @param <T> type varies i guess
+     */
     private static <T extends Comparable<T>> BlockState applyProperty(BlockState state, Property<T> prop, String value) {
         return prop.getValue(value)
                 .map(v -> state.setValue(prop, v))
                 .orElse(state);
     }
 
-    private List<ItemStack> getRequiredMaterialStacks(ItemStack wand, Block copycatBlock, int count, HolderLookup.Provider registries) {
+    /**
+     * gets the required materials for placement
+     * @param wand wands data being accessed
+     * @param copycatBlock the copycat block
+     * @param count number of full blocks being placed
+     * @param registries the regstries, which gives more context
+     * @return list of items that are required for placement
+     */
+    private List<ItemStack> getRequiredItemsForPlacement(ItemStack wand, Block copycatBlock, int count, HolderLookup.Provider registries) {
         List<ItemStack> required = new ArrayList<>();
 
         if (!(copycatBlock instanceof IMultiStateCopycatBlock multiState)) {
@@ -260,6 +308,14 @@ public class AndesiteWandItem extends Item {
         }
     }
 
+    /**
+     * places one or multiple blocks
+     * @param player the player holding the wand
+     * @param pos the position right clicked by the player holding the wand
+     * @param ctx more context that contains information for the block placement, exists to cut down on parameters
+     * @return true if the placement succeeded, false if not
+     */
+
     private boolean placeBlock(ServerPlayer player, BlockPos pos, WandPlacementContext ctx) {
 
         Level level = player.level();
@@ -280,21 +336,28 @@ public class AndesiteWandItem extends Item {
 
         if (ctx.blockToPlace() instanceof IMultiStateCopycatBlock copycatBlock) {
 
+//            for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
+//                if (prop instanceof BooleanProperty boolProp && copycatBlock.storageProperties().contains(boolProp.getName())) {
+//                    finalStateToPlace = finalStateToPlace.setValue(boolProp, false);
+//                }
+//            }
+//
+//            for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
+//                String value = materialComponent.blockStateProps().get(prop.getName());
+//                if (value == null) continue;
+//                finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
+//            }
+
             for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
                 if (prop instanceof BooleanProperty boolProp && copycatBlock.storageProperties().contains(boolProp.getName())) {
                     finalStateToPlace = finalStateToPlace.setValue(boolProp, false);
                 }
-            }
-
-            for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
                 String value = materialComponent.blockStateProps().get(prop.getName());
                 if (value == null) continue;
                 finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
             }
 
-            boolean anyActive = isAnyActive(copycatBlock, materialComponent);
-
-            if (!anyActive) {
+            if (!isAnyActive(copycatBlock, materialComponent)) {
                 player.displayClientMessage(
                         Component.literal("No parts are enabled, cannot place block").withStyle(ChatFormatting.RED),
                         true
@@ -346,6 +409,13 @@ public class AndesiteWandItem extends Item {
         return true;
     }
 
+    /**
+     * checks if any parts of the copycat are active
+     * @param copycatBlock the block to search the storage properties of
+     * @param materialComponent the data on the wand that decides what block state/block entity to place
+     * @return true if any parts are active, false if none are active
+     */
+
     private static boolean isAnyActive(IMultiStateCopycatBlock copycatBlock, WandMaterialComponent materialComponent) {
         return copycatBlock.storageProperties().stream().anyMatch(key -> {
             String value = materialComponent.blockStateProps().get(key);
@@ -358,6 +428,14 @@ public class AndesiteWandItem extends Item {
         });
     }
 
+    /**
+     * modifies the block entity at the specified position to match the updated state
+     * @param level the minecraft world (needed context)
+     * @param pos the block position to modify
+     * @param be the block entity to modify
+     * @param oldState the previous block state
+     * @param newState the new block state to update the old one to
+     */
     private void syncBE(Level level, BlockPos pos, BlockEntity be, BlockState oldState, BlockState newState) {
         if (be == null) return;
         be.setChanged();
@@ -442,7 +520,7 @@ public class AndesiteWandItem extends Item {
         WandPlacementContext ctx = new WandPlacementContext(blockToPlace, regularStack, useCopycat, context);
 
         if (!player.isCreative()) {
-            List<ItemStack> required = getRequiredMaterialStacks(wand, blockToPlace, positions.size(), player.level().registryAccess());
+            List<ItemStack> required = getRequiredItemsForPlacement(wand, blockToPlace, positions.size(), player.level().registryAccess());
             if (!tryConsumeItems(player.getInventory(), required)) {
                 player.displayClientMessage(
                         Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
