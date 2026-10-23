@@ -70,23 +70,31 @@ public class AndesiteWandItem extends Item {
      * @param hand the hand which is using the wand
      */
     private static void openConfig(Level level, Player player, InteractionHand hand) {
-        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
-            MenuProvider containerProvider = new MenuProvider() {
-                @Override
-                public @NotNull Component getDisplayName() {
-					return Component.literal("Wand Configuration");
-				}
-
-                @Override
-                public AbstractContainerMenu createMenu(int id, @NotNull Inventory inv, @NotNull Player p) {
-                    return new WandConfigMenu(id, inv, hand);
-                }
-            };
-
-            serverPlayer.openMenu(containerProvider);
+        if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
+            return;
         }
+        MenuProvider containerProvider = new MenuProvider() {
+            @Override
+            public @NotNull Component getDisplayName() {
+                return Component.literal("Wand Configuration");
+            }
+
+            @Override
+            public AbstractContainerMenu createMenu(int id, @NotNull Inventory inv, @NotNull Player p) {
+                return new WandConfigMenu(id, inv, hand);
+            }
+        };
+
+        serverPlayer.openMenu(containerProvider);
     }
 
+    /**
+     * function called when a right click while not facing a block is performed
+     * @param level the minecraft world
+     * @param player the player who performed the right click
+     * @param hand the hand that performed the right click
+     * @return the item stack to return. in the wands case, it'll just be the wand again.
+     */
     @Override
     public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level level, Player player, @NotNull InteractionHand hand) {
         ItemStack wand = player.getItemInHand(hand);
@@ -116,6 +124,11 @@ public class AndesiteWandItem extends Item {
         return InteractionResultHolder.consume(wand);
     }
 
+    /**
+     * called when a right click while facing a block is performed
+     * @param context the world context
+     * @return pass, fail, or consume depending on what happens
+     */
     @Override
     public @NotNull InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
@@ -130,7 +143,9 @@ public class AndesiteWandItem extends Item {
             return InteractionResult.SUCCESS;
         }
 
-        if (!(player instanceof ServerPlayer serverPlayer)) return InteractionResult.FAIL;
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.FAIL;
+        }
 
         if (player.isCrouching()) {
             if (heldWand.has(ModDataComponents.WAND_START_POS.get())) {
@@ -145,15 +160,21 @@ public class AndesiteWandItem extends Item {
         boolean isCopycat = copycatBlock != null && !copycatBlock.defaultBlockState().isAir();
         Block blockToPlace = isCopycat ? copycatBlock : regularBlock;
 
-        if ((blockToPlace == null) || blockToPlace.defaultBlockState().isAir()) return InteractionResult.PASS;
+        if ((blockToPlace == null) || blockToPlace.defaultBlockState().isAir()) {
+            return InteractionResult.PASS;
+        }
 
         ItemStack materialStack = regularBlock != null ? new ItemStack(regularBlock.asItem()) : ItemStack.EMPTY;
         WandMode currentMode = heldWand.getOrDefault(ModDataComponents.WAND_MODE.get(), WandMode.SINGLE);
         BlockPlaceContext placeContext = new BlockPlaceContext(context);
 
         boolean placed = switch (currentMode) {
-            case SINGLE ->
-                    handleSinglePlacement(serverPlayer, player, heldWand, blockToPlace, clickedPos, clickedFace, materialStack, isCopycat, placeContext);
+            // TODO this does not work with doors (or any other multi-block blocks) plz fix
+            case SINGLE -> {
+                if (!consumeItemsForPlacement(serverPlayer, heldWand, blockToPlace, 1)) yield false;
+                yield placeBlock(serverPlayer, clickedPos.relative(clickedFace),
+                        new WandPlacementContext(blockToPlace, materialStack, isCopycat, placeContext));
+            }
             case LINE, PLANE, CUBE -> placeMultiple(currentMode, serverPlayer, heldWand, placeContext);
             case SPHERE -> false;
         };
@@ -162,30 +183,23 @@ public class AndesiteWandItem extends Item {
     }
 
     /**
-     * handles placing or rejecting 1 block
-     * @param serverPlayer player on the server side
-     * @param player player on the client side
-     * @param heldWand wand with the data being accessed
-     * @param blockToPlace block that will attempted to be placed
-     * @param clickedPos coordinates clicked
-     * @param clickedFace face clicked
-     * @param materialStack stack representing the block that will attempted to be placed
-     * @param isCopycat if a copycat is being placed or not
-     * @param placeContext more context needed for the block placement
-     * @return true if the placement succeeded, false if not
+     * attempts to consume items for placement, and if it doesn't work it sends a message in chat telling the player. will return true if player is in creative and no items will be consumed
+     * @param player the player attempting to place
+     * @param wand the wand trying to place
+     * @param blockToPlace block attempting to be placed
+     * @param count number of blocks attempting to be placed
+     * @return true if the placement can go through, false if not
      */
-    private boolean handleSinglePlacement(ServerPlayer serverPlayer, Player player, ItemStack heldWand, Block blockToPlace, BlockPos clickedPos, Direction clickedFace, ItemStack materialStack, boolean isCopycat, BlockPlaceContext placeContext) {
-        if (!player.isCreative()) {
-            List<ItemStack> required = getRequiredItemsForPlacement(heldWand, blockToPlace, 1, player.level().registryAccess());
-            required.forEach(stack -> CreateBuildingWands.LOGGER.info("[WandDebug] required item: {} x {}", stack.getItem(), stack.getCount()));
-            if (!tryConsumeItems(player.getInventory(), required)) {
-                player.displayClientMessage(
-                        Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
-                return false;
-            }
+    private boolean consumeItemsForPlacement(ServerPlayer player, ItemStack wand, Block blockToPlace, int count) {
+        if (player.isCreative()) return true;
+
+        List<ItemStack> required = getRequiredItemsForPlacement(wand, blockToPlace, count, player.level().registryAccess());
+        if (!consumeItems(player.getInventory(), required)) {
+            player.displayClientMessage(
+                    Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
+            return false;
         }
-        return placeBlock(serverPlayer, clickedPos.relative(clickedFace),
-                new WandPlacementContext(blockToPlace, materialStack, isCopycat, placeContext));
+        return true;
     }
 
     /**
@@ -195,7 +209,6 @@ public class AndesiteWandItem extends Item {
      * @param player the player holding the wand on the client side
      * @return the InteractionResult, in this case CONSUME since the behavior is always consistent
      */
-
     private static @NotNull InteractionResult removeStartPosition(ServerPlayer serverPlayer, ItemStack heldWand, Player player) {
         heldWand.remove(ModDataComponents.WAND_START_POS.get());
         player.displayClientMessage(
@@ -258,33 +271,39 @@ public class AndesiteWandItem extends Item {
     private List<ItemStack> getRequiredItemsForPlacement(ItemStack wand, Block copycatBlock, int count, HolderLookup.Provider registries) {
         List<ItemStack> required = new ArrayList<>();
 
-        if (!(copycatBlock instanceof IMultiStateCopycatBlock multiState)) {
+        // if its a multi state copycat
+        if (copycatBlock instanceof IMultiStateCopycatBlock multiState) {
+            WandMaterialComponent component = WandUtils.getCurrentComponent(wand);
+
+            long activeParts = getActiveParts(multiState, component);
+
+            required.add(new ItemStack(copycatBlock.asItem(), (int) (count * activeParts)));
+
+            MaterialItemStorage storage = component.toStorage(copycatBlock, registries);
+            Set<Item> seen = new HashSet<>();
+            for (String key : multiState.storageProperties()) {
+                if (!isValueActive(component.blockStateProps().get(key))) continue;
+                MaterialItemStorage.MaterialItem item = storage.getMaterialItem(key);
+                if (item == null || item.consumedItem().isEmpty()) continue;
+                if (seen.add(item.consumedItem().getItem())) {
+                    required.add(new ItemStack(item.consumedItem().getItem(), count));
+                }
+            }
+        } else {
             required.add(new ItemStack(copycatBlock.asItem(), count));
             Block regularBlock = wand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
             if (regularBlock != null) required.add(new ItemStack(regularBlock.asItem(), count));
-            return required;
-        }
-
-        WandMaterialComponent component = WandUtils.getCurrentComponent(wand);
-
-        long activeParts = getActiveParts(multiState, component);
-
-        required.add(new ItemStack(copycatBlock.asItem(), (int) (count * activeParts)));
-
-        MaterialItemStorage storage = component.toStorage(copycatBlock, registries);
-        Set<Item> seen = new HashSet<>();
-        for (String key : multiState.storageProperties()) {
-            if (!isValueActive(component.blockStateProps().get(key))) continue;
-            MaterialItemStorage.MaterialItem item = storage.getMaterialItem(key);
-            if (item == null || item.consumedItem().isEmpty()) continue;
-            if (seen.add(item.consumedItem().getItem())) {
-                required.add(new ItemStack(item.consumedItem().getItem(), count));
-            }
         }
 
         return required;
     }
 
+    /**
+     * returns the number of active parts in a single block, which will tell other methods how many multistate copycat items need to be consumed
+     * @param multiState the multistate block attempted to be placed
+     * @param component the wand data
+     * @return number of total active parts
+     */
     private static long getActiveParts(IMultiStateCopycatBlock multiState, WandMaterialComponent component) {
         return multiState.storageProperties().stream()
                 .mapToLong(key -> {
@@ -299,6 +318,11 @@ public class AndesiteWandItem extends Item {
                 .sum();
     }
 
+    /**
+     * checks if a value is active
+     * @param value the value to check in the component
+     * @return true if the value is "true", false if not
+     */
     private boolean isValueActive(String value) {
         if (value == null) return false;
         try {
@@ -319,11 +343,10 @@ public class AndesiteWandItem extends Item {
     private boolean placeBlock(ServerPlayer player, BlockPos pos, WandPlacementContext ctx) {
 
         Level level = player.level();
-        Direction clickedFace = ctx.blockPlaceContext().getClickedFace();
 
         if (!level.getBlockState(pos).canBeReplaced()) return false;
 
-        BlockPlaceContext localContext = BlockPlaceContext.at(ctx.blockPlaceContext(), pos, clickedFace);
+        BlockPlaceContext localContext = BlockPlaceContext.at(ctx.blockPlaceContext(), pos, ctx.blockPlaceContext().getClickedFace());
         BlockState stateToPlace = getOrientedBlockState(ctx.blockToPlace(), localContext);
 
         if (!ctx.isCopycat()) {
@@ -335,18 +358,6 @@ public class AndesiteWandItem extends Item {
         BlockState finalStateToPlace = stateToPlace;
 
         if (ctx.blockToPlace() instanceof IMultiStateCopycatBlock copycatBlock) {
-
-//            for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
-//                if (prop instanceof BooleanProperty boolProp && copycatBlock.storageProperties().contains(boolProp.getName())) {
-//                    finalStateToPlace = finalStateToPlace.setValue(boolProp, false);
-//                }
-//            }
-//
-//            for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
-//                String value = materialComponent.blockStateProps().get(prop.getName());
-//                if (value == null) continue;
-//                finalStateToPlace = applyProperty(finalStateToPlace, prop, value);
-//            }
 
             for (Property<?> prop : ctx.blockToPlace().defaultBlockState().getProperties()) {
                 if (prop instanceof BooleanProperty boolProp && copycatBlock.storageProperties().contains(boolProp.getName())) {
@@ -366,29 +377,20 @@ public class AndesiteWandItem extends Item {
             }
 
             BlockState oldState = level.getBlockState(pos);
-            if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
+            if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) {
+                return false;
+            }
 
             BlockEntity targetBE = level.getBlockEntity(pos);
-            if (!(targetBE instanceof IMultiStateCopycatBlockEntity copycatMock)) return false;
+            if (!(targetBE instanceof IMultiStateCopycatBlockEntity copycatMock)) {
+                return false;
+            }
 
             copycatMock.init();
             MaterialItemStorage wandStorage = materialComponent.toStorage((Block) copycatBlock, player.level().registryAccess());
             MaterialItemStorage beStorage = copycatMock.getMaterialItemStorage();
 
-            Set<Item> seenItems = new HashSet<>();
-            for (String key : wandStorage.getAllProperties()) {
-                MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
-                if (item == null || !item.hasCustomMaterial()) continue;
-
-                Item consumedItemType = item.consumedItem().getItem();
-                boolean isDuplicate = !item.consumedItem().isEmpty() && !seenItems.add(consumedItemType);
-
-                MaterialItemStorage.MaterialItem toStore = isDuplicate
-                        ? new MaterialItemStorage.MaterialItem(item.material(), ItemStack.EMPTY, item.enableCT())
-                        : item;
-
-                beStorage.storeMaterialItem(key, toStore);
-            }
+            getSeenItems(wandStorage, beStorage);
 
             syncBE(level, pos, targetBE, oldState, finalStateToPlace);
         } else {
@@ -397,7 +399,9 @@ public class AndesiteWandItem extends Item {
                     .get(ModDataComponents.WAND_BLOCK_REGULAR.get());
 
             BlockState oldState = level.getBlockState(pos);
-            if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) return false;
+            if (!level.setBlock(pos, finalStateToPlace, Block.UPDATE_NEIGHBORS | Block.UPDATE_KNOWN_SHAPE)) {
+                return false;
+            }
 
             assert regularBlock != null;
             BlockState materialState = regularBlock.defaultBlockState();
@@ -407,6 +411,30 @@ public class AndesiteWandItem extends Item {
             syncBE(level, pos, level.getBlockEntity(pos), oldState, finalStateToPlace);
         }
         return true;
+    }
+
+    /**
+     * determines how many instances of a block there are inside a multi state copycat
+     * @param wandStorage existing wand storage of the copycat
+     * @param beStorage new storage of the copycat
+     */
+    private static void getSeenItems(MaterialItemStorage wandStorage, MaterialItemStorage beStorage) {
+        Set<Item> seenItems = new HashSet<>();
+        for (String key : wandStorage.getAllProperties()) {
+            MaterialItemStorage.MaterialItem item = wandStorage.getMaterialItem(key);
+            if (item == null || !item.hasCustomMaterial()) {
+                continue;
+            }
+
+            Item consumedItemType = item.consumedItem().getItem();
+            boolean isDuplicate = !item.consumedItem().isEmpty() && !seenItems.add(consumedItemType);
+
+            MaterialItemStorage.MaterialItem toStore = isDuplicate
+                    ? new MaterialItemStorage.MaterialItem(item.material(), ItemStack.EMPTY, item.enableCT())
+                    : item;
+
+            beStorage.storeMaterialItem(key, toStore);
+        }
     }
 
     /**
@@ -437,7 +465,9 @@ public class AndesiteWandItem extends Item {
      * @param newState the new block state to update the old one to
      */
     private void syncBE(Level level, BlockPos pos, BlockEntity be, BlockState oldState, BlockState newState) {
-        if (be == null) return;
+        if (be == null) {
+            return;
+        }
         be.setChanged();
 
         if (level instanceof ServerLevel serverLevel) {
@@ -475,7 +505,9 @@ public class AndesiteWandItem extends Item {
      */
     private boolean placeMultiple(WandMode mode, ServerPlayer player, ItemStack wand, BlockPlaceContext context) {
         Level level = player.level();
-        if (level.isClientSide) return false;
+        if (level.isClientSide) {
+            return false;
+        }
 
         Block regularBlock = wand.get(ModDataComponents.WAND_BLOCK_REGULAR.get());
         Block copycatBlock = wand.get(ModDataComponents.WAND_BLOCK_COPYCAT.get());
@@ -519,14 +551,7 @@ public class AndesiteWandItem extends Item {
         ItemStack regularStack = regularBlock != null ? new ItemStack(regularBlock.asItem()) : ItemStack.EMPTY;
         WandPlacementContext ctx = new WandPlacementContext(blockToPlace, regularStack, useCopycat, context);
 
-        if (!player.isCreative()) {
-            List<ItemStack> required = getRequiredItemsForPlacement(wand, blockToPlace, positions.size(), player.level().registryAccess());
-            if (!tryConsumeItems(player.getInventory(), required)) {
-                player.displayClientMessage(
-                        Component.literal("Not enough blocks to complete the placement").withStyle(ChatFormatting.RED), true);
-                return false;
-            }
-        }
+        if (!consumeItemsForPlacement(player, wand, blockToPlace, positions.size())) return false;
 
         int placedCount = 0;
         for (BlockPos pos : positions) {
@@ -543,7 +568,13 @@ public class AndesiteWandItem extends Item {
         return placedCount > 0;
     }
 
-    private boolean tryConsumeItems(Inventory inventory, List<ItemStack> required) {
+    /**
+     * will check if the items cant be consumed, like if the player doesn't have enough
+     * @param inventory players inventory
+     * @param required items required for consumption
+     * @return false if items can be consumed, true if they cant
+     */
+    private boolean consumeItems(Inventory inventory, List<ItemStack> required) {
         Map<ItemStack, List<int[]>> consumptionPlan = new LinkedHashMap<>();
 
         for (ItemStack requirement : required) {
@@ -576,6 +607,12 @@ public class AndesiteWandItem extends Item {
         return true;
     }
 
+    /**
+     * gets the block state necessary for placement.
+     * @param block the block attempting to be placed
+     * @param context the context surrounding the block
+     * @return the block state of the block
+     */
     private BlockState getOrientedBlockState(Block block, BlockPlaceContext context) {
 
         BlockState state = block.getStateForPlacement(context);
@@ -583,6 +620,13 @@ public class AndesiteWandItem extends Item {
         return state != null ? state : block.defaultBlockState();
     }
 
+    /**
+     * applies the copycat material properties after block placement
+     * @param level the minecraft world
+     * @param pos position of block to modify
+     * @param materialState state to apply to the block
+     * @param consumedItem items to consume
+     */
     private void applyCopycatMaterial(Level level, BlockPos pos, BlockState materialState, ItemStack consumedItem) {
         BlockEntity be = level.getBlockEntity(pos);
         if (be == null) return;
